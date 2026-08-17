@@ -83,12 +83,20 @@ app.post('/api/paynecta/deposit/mpesa', async (req, res) => {
 
     const kesAmount = Math.round(Number(amountUsd) * USD_TO_KES);
     const successUrl = `${req.protocol}://${req.get('host')}/#/deposit/success`;
+    const cancelUrl  = `${req.protocol}://${req.get('host')}/#/deposit/cancelled`;
 
-    // Paynecta required fields: code (payment link slug) + success_url
-    const sessionRes = await paynectaRequest('POST', '/api/v1/checkout/sessions', {
-      code: PAYNECTA_LINK_SLUG,
-      success_url: successUrl
+    // Use the payment-link-specific checkout endpoint: POST /api/payment/{slug}/checkout
+    // This is the correct endpoint — the slug goes in the URL, not the body.
+    const sessionRes = await paynectaRequest('POST', `/api/payment/${PAYNECTA_LINK_SLUG}/checkout`, {
+      amount: kesAmount,
+      currency: 'KES',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      reference: `BB-DEP-${Date.now()}`,
+      description: `BetaBinary M-Pesa Deposit — $${amountUsd} USD (KES ${kesAmount})`
     });
+
+    console.log('[Paynecta] M-Pesa checkout response:', JSON.stringify(sessionRes));
 
     if (sessionRes.status < 200 || sessionRes.status >= 300) {
       console.error('[Paynecta] Session create error:', sessionRes);
@@ -97,9 +105,14 @@ app.post('/api/paynecta/deposit/mpesa', async (req, res) => {
       });
     }
 
-    const sessionId  = sessionRes.body?.data?.id  || sessionRes.body?.id;
-    const sessionUrl = sessionRes.body?.data?.url || sessionRes.body?.checkout_url
-                    || `https://paynecta.co.ke/c/${sessionId}`;
+    const sessionId  = sessionRes.body?.data?.id  || sessionRes.body?.id  || sessionRes.body?.session_id;
+    const sessionUrl = sessionRes.body?.data?.url || sessionRes.body?.url || sessionRes.body?.checkout_url
+                    || (sessionId ? `https://paynecta.co.ke/c/${sessionId}` : null);
+
+    if (!sessionUrl) {
+      console.error('[Paynecta] No session URL in response:', sessionRes.body);
+      return res.status(500).json({ error: 'Checkout session created but no URL returned. Contact support.' });
+    }
 
     return res.json({
       success: true,
@@ -107,7 +120,6 @@ app.post('/api/paynecta/deposit/mpesa', async (req, res) => {
       sessionUrl,
       kesAmount,
       amountUsd: Number(amountUsd),
-      // Paynecta handles the STK Push on their hosted page after customer enters phone
       message: 'Paynecta checkout ready. Complete payment on the secure page.'
     });
 
@@ -134,16 +146,24 @@ app.post('/api/paynecta/deposit/card', async (req, res) => {
 
     const kesAmount = Math.round(Number(amountUsd) * USD_TO_KES);
     const successUrl = `${req.protocol}://${req.get('host')}/#/deposit/success`;
+    const cancelUrl  = `${req.protocol}://${req.get('host')}/#/deposit/cancelled`;
 
-    const sessionRes = await paynectaRequest('POST', '/api/v1/checkout/sessions', {
-      code: PAYNECTA_LINK_SLUG,
-      success_url: successUrl
+    // Use payment-link-specific checkout endpoint (same as M-Pesa — Paynecta handles method on their page)
+    const sessionRes = await paynectaRequest('POST', `/api/payment/${PAYNECTA_LINK_SLUG}/checkout`, {
+      amount: kesAmount,
+      currency: 'KES',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      reference: `BB-CARD-${Date.now()}`,
+      description: `BetaBinary Card Deposit — $${amountUsd} USD (KES ${kesAmount})`
     });
 
+    console.log('[Paynecta] Card checkout response:', JSON.stringify(sessionRes));
+
     if (sessionRes.status >= 200 && sessionRes.status < 300) {
-      const sessionId  = sessionRes.body?.data?.id  || sessionRes.body?.id;
-      const sessionUrl = sessionRes.body?.data?.url || sessionRes.body?.checkout_url
-                      || `https://paynecta.co.ke/c/${sessionId}`;
+      const sessionId  = sessionRes.body?.data?.id  || sessionRes.body?.id  || sessionRes.body?.session_id;
+      const sessionUrl = sessionRes.body?.data?.url || sessionRes.body?.url || sessionRes.body?.checkout_url
+                      || (sessionId ? `https://paynecta.co.ke/c/${sessionId}` : null);
 
       return res.json({
         success: true,
