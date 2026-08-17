@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BetaBinary — Trade Smarter. Profit Faster.</title>
+  <meta name="description" content="Access 100+ global markets with lightning-fast execution. Trade forex, volatility synthetics, crypto & commodities with payouts up to 950%." />
+
+  <!-- Google Fonts: IBM Plex Sans, Inter, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/trade.css" />
+  <link rel="stylesheet" href="css/landing.css" />
+  <link rel="stylesheet" href="css/settings.css" />
+  <link rel="stylesheet" href="css/modals.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body>
+  <!-- Root SPA Container -->
+  <div id="app"></div>
+
+  <!-- Deposit Modal -->
+  <div class="modal-overlay hidden" id="deposit-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Deposit Funds</div>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <label class="form-label font-bold text-xs" style="text-transform:uppercase; letter-spacing:0.05em;">1. Choose Payment Method</label>
+        <div class="payment-methods-grid">
+          <div class="payment-method-card active" data-method="mpesa">
+            <div class="payment-method-icon" style="background:rgba(16, 185, 129, 0.15); color:#10b981;">📱</div>
+            <div class="payment-method-name">M-Pesa</div>
+            <div class="payment-method-sub">Instant STK Push</div>
+          </div>
+
+          <div class="payment-method-card" data-method="card">
+            <div class="payment-method-icon" style="background:rgba(139, 92, 246, 0.15); color:#a78bfa;">💳</div>
+            <div class="payment-method-name">Card</div>
+            <div class="payment-method-sub">Visa / Mastercard</div>
+          </div>
+
+          <div class="payment-method-card" data-method="trc20">
+            <div class="payment-method-icon" style="background:rgba(245, 158, 11, 0.15); color:#fbbf24;">₮</div>
+            <div class="payment-method-name">USDT</div>
+            <div class="payment-method-sub">TRC-20 Crypto</div>
+          </div>
+        </div>
+
+        <!-- Deposit Amount Configuration -->
+        <div class="form-group" style="margin-top:0.5rem; margin-bottom:0.25rem;">
+          <label class="form-label">
+            <span>2. Amount (USD)</span>
+            <span class="text-brand font-mono text-xs" id="deposit-kes-display">≈ KES 3,250 (1 USD = 130 KES)</span>
+          </label>
+          <div class="input-wrapper">
+            <span class="input-icon-left text-brand font-bold">$</span>
+            <input type="number" class="input-field input-with-left-icon mono font-bold text-lg" id="deposit-amount-input" value="25" min="5" step="5" />
+          </div>
+        </div>
+
+        <div class="amount-presets-grid">
+          <button class="amount-chip" data-val="10">$10</button>
+          <button class="amount-chip active" data-val="25">$25</button>
+          <button class="amount-chip" data-val="50">$50</button>
+          <button class="amount-chip" data-val="100">$100</button>
+        </div>
+
+        <!-- M-Pesa Form -->
+        <div id="deposit-mpesa-form">
+          <div class="form-group" style="margin-top:0.5rem;">
+            <label class="form-label">M-Pesa Registered Phone Number</label>
+            <div class="input-wrapper">
+              <span class="input-icon-left">🇰🇪</span>
+              <input type="tel" class="input-field input-with-left-icon mono" id="deposit-phone-input" placeholder="0712 345 678 or 254..." value="0712345678" />
+            </div>
+            <span class="text-xs text-muted">You will receive an STK Push PIN prompt on this phone.</span>
+          </div>
+
+          <div id="mpesa-progress-container" class="hidden" style="margin-top:0.75rem;"></div>
+
+          <button class="btn btn-success w-full" id="btn-submit-mpesa-deposit" style="margin-top:1rem; padding:0.8rem;">
+            Send M-Pesa STK Push &rarr;
+          </button>
+        </div>
+
+        <!-- Card Form -->
+        <div id="deposit-card-form" class="hidden">
+          <div class="form-group">
+            <label class="form-label">Card Number</label>
+            <input type="text" class="input-field mono" placeholder="4000 1234 5678 9010" />
+          </div>
+          <div class="grid" style="grid-template-columns: 1fr 1fr; gap:0.5rem;">
+            <div>
+              <label class="form-label">Expiry</label>
+              <input type="text" class="input-field mono" placeholder="MM/YY" />
+            </div>
+            <div>
+              <label class="form-label">CVV</label>
+              <input type="password" class="input-field mono" maxlength="3" placeholder="123" />
+            </div>
+          </div>
+          <button class="btn btn-primary w-full" id="btn-submit-card-deposit" style="margin-top:1rem; padding:0.8rem;">
+            Authorize Card Payment &rarr;
+          </button>
+        </div>
+
+        <!-- USDT TRC20 Form -->
+        <div id="deposit-trc20-form" class="hidden">
+          <div style="background:#090e18; border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:1rem; text-align:center;">
+            <div class="text-xs text-muted mb-2">Send USDT (TRC-20 Network only) to:</div>
+            
+            <div class="qr-canvas-mock" style="margin: 0.5rem auto;">
+              <svg viewBox="0 0 100 100" width="120" height="120">
+                <rect width="100" height="100" fill="#ffffff" />
+                <rect x="10" y="10" width="25" height="25" fill="#000000" />
+                <rect x="65" y="10" width="25" height="25" fill="#000000" />
+                <rect x="10" y="65" width="25" height="25" fill="#000000" />
+                <rect x="40" y="40" width="20" height="20" fill="#06b6d4" />
+                <rect x="45" y="70" width="30" height="15" fill="#000000" />
+              </svg>
+            </div>
+
+            <div class="secret-key-display" style="font-size:0.75rem; justify-content:center; word-break:break-all;">
+              <span>TJ8k7aM69X2Wq4Lz98Pv17Q8VbY</span>
+              <button class="btn btn-ghost btn-sm text-xs" onclick="navigator.clipboard.writeText('TJ8k7aM69X2Wq4Lz98Pv17Q8VbY'); alert('Address copied!');">📋</button>
+            </div>
+          </div>
+
+          <button class="btn btn-warning w-full" id="btn-submit-usdt-deposit" style="margin-top:1rem; padding:0.8rem;">
+            I Have Transferred USDT &rarr;
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Withdraw Modal -->
+  <div class="modal-overlay hidden" id="withdraw-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Withdraw Funds</div>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Withdrawal Method</label>
+          <select class="input-field" id="withdraw-method-select">
+            <option value="M-Pesa">M-Pesa (Kenya Mobile Money - Instant)</option>
+            <option value="USDT (TRC-20)">USDT TRC-20 (Crypto Wallet)</option>
+            <option value="Bank Wire">Equity / KCB / NCBA Bank Wire</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Destination (Phone Number / Wallet / IBAN)</label>
+          <input type="text" class="input-field mono" id="withdraw-dest-input" placeholder="e.g. 0712345678 or TRC20 address..." value="0712345678" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Amount (USD)</label>
+          <div class="input-wrapper">
+            <span class="input-icon-left text-brand font-bold">$</span>
+            <input type="number" class="input-field input-with-left-icon mono font-bold" id="withdraw-amount-input" value="50" min="10" />
+          </div>
+          <span class="text-xs text-muted">Minimum withdrawal: $10.00 • No withdrawal fee.</span>
+        </div>
+
+        <button class="btn btn-primary w-full" id="btn-submit-withdraw" style="margin-top:0.75rem; padding:0.8rem;">
+          Confirm Withdrawal &rarr;
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Live Support Chat Button & Window -->
+  <button class="live-chat-toggle-btn" id="live-chat-toggle" title="Live Customer Support">
+    <div class="live-chat-badge"></div>
+    <span style="font-size:1.4rem;">💬</span>
+  </button>
+
+  <div class="live-chat-window hidden" id="live-chat-modal">
+    <div class="chat-header">
+      <div class="chat-agent-info">
+        <div class="chat-agent-avatar">β</div>
+        <div>
+          <div class="font-bold text-xs">BetaBinary Support</div>
+          <div class="text-xs text-success" style="font-size:0.68rem;">● Online now</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="close-chat-btn" style="padding:0.2rem 0.4rem;">&times;</button>
+    </div>
+
+    <!-- Quick Help Suggestions -->
+    <div style="background:#090e18; padding:0.4rem 0.6rem; display:flex; gap:0.3rem; overflow-x:auto; border-bottom:1px solid var(--border-subtle);">
+      <button class="btn btn-secondary btn-sm text-xs chat-quick-chip" style="padding:0.2rem 0.5rem; font-size:0.7rem;">M-Pesa Deposit</button>
+      <button class="btn btn-secondary btn-sm text-xs chat-quick-chip" style="padding:0.2rem 0.5rem; font-size:0.7rem;">Auto Bot Setup</button>
+      <button class="btn btn-secondary btn-sm text-xs chat-quick-chip" style="padding:0.2rem 0.5rem; font-size:0.7rem;">Digit Rules</button>
+    </div>
+
+    <div class="chat-messages-scroll" id="chat-messages-container">
+      <div class="chat-msg-bubble chat-msg-bot">
+        <p>Hello! Welcome to BetaBinary Support. How can we assist your trading today?</p>
+        <span style="font-size:0.65rem; opacity:0.6; display:block; text-align:right; margin-top:0.2rem;">Online</span>
+      </div>
+    </div>
+
+    <div class="chat-input-row">
+      <input type="text" class="input-field text-xs flex-1" id="chat-text-input" placeholder="Type your question..." />
+      <button class="btn btn-primary btn-sm" id="chat-send-btn">Send</button>
+    </div>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div id="toast-container"></div>
+
+  <!-- App Bootstrap Module -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
