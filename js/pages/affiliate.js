@@ -9,7 +9,7 @@ export function renderAffiliateView() {
   container.className = 'landing-wrapper';
 
   const user = stateManager.getState().user;
-  const referralLink = `https://betabinary.ke/register?ref=${user.referralCode}`;
+  const referralLink = `${window.location.origin}/#/register?ref=${user.referralCode}`;
 
   container.innerHTML = `
     <!-- Top Nav Header -->
