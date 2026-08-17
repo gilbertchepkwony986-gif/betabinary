@@ -1,0 +1,79 @@
+/* ==========================================================================
+   BetaBinary - Responsive Styles (responsive.css)
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .trade-order-pad {
+    width: 320px;
+  }
+  
+  .footer-container {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .settings-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .trade-container {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  .trade-main-workspace {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .trade-chart-area {
+    height: 380px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .trade-order-pad {
+    width: 100%;
+    border-left: none;
+  }
+
+  .trade-bottom-activity {
+    height: auto;
+    min-height: 280px;
+  }
+
+  .bot-panel-wrapper {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-nav-links {
+    display: none;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .hero-actions .btn {
+    width: 100%;
+  }
+
+  .footer-container {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .payment-methods-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .live-chat-window {
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    bottom: 5rem;
+  }
+}
