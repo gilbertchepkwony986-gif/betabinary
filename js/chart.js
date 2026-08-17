@@ -1,5 +1,6 @@
 /* ==========================================================================
-   BetaBinary - High-Performance Canvas Chart Renderer (chart.js)
+   BetaBinary - Exact Canvas Chart Renderer (chart.js)
+   Replicating original betabinary.ke/trade stepped area chart, Y-scale & timestamps
    ========================================================================== */
 
 import { priceEngine } from './engine.js';
@@ -10,22 +11,24 @@ export class ChartRenderer {
     this.canvas = canvasElement;
     this.ctx = canvasElement.getContext('2d');
     this.chartType = 'area'; // 'area' or 'candles'
-    this.timeframe = 1; // in seconds
+    this.timeframe = 1; // 1s
+    this.zoomLevel = 1.0;
+    this.visibleTicksCount = 50;
+    
     this.activeIndicators = {
-      sma: true,
-      ema: false,
+      sma: false,
       bollinger: false,
       rsi: false
     };
 
     this.mousePos = null;
-    this.animationId = null;
 
     this.initCanvasSize();
     this.setupEvents();
   }
 
   initCanvasSize() {
+    if (!this.canvas || !this.canvas.parentElement) return;
     const rect = this.canvas.parentElement.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     this.width = rect.width;
@@ -49,20 +52,21 @@ export class ChartRenderer {
     this.canvas.addEventListener('mouseleave', () => {
       this.mousePos = null;
     });
+
+    // Zoom buttons listener
+    document.querySelector('#btn-zoom-in')?.addEventListener('click', () => {
+      this.visibleTicksCount = Math.max(20, this.visibleTicksCount - 10);
+    });
+    document.querySelector('#btn-zoom-out')?.addEventListener('click', () => {
+      this.visibleTicksCount = Math.min(150, this.visibleTicksCount + 10);
+    });
+    document.querySelector('#btn-zoom-reset')?.addEventListener('click', () => {
+      this.visibleTicksCount = 50;
+    });
   }
 
   setChartType(type) {
     this.chartType = type;
-  }
-
-  setTimeframe(tf) {
-    this.timeframe = tf;
-  }
-
-  toggleIndicator(name) {
-    if (this.activeIndicators.hasOwnProperty(name)) {
-      this.activeIndicators[name] = !this.activeIndicators[name];
-    }
   }
 
   render(assetId, openPositions = []) {
@@ -70,19 +74,19 @@ export class ChartRenderer {
     const width = this.width;
     const height = this.height;
 
+    if (!width || !height) return;
+
     ctx.clearRect(0, 0, width, height);
 
-    // Background Grid
-    this.drawGrid(width, height);
-
     if (this.chartType === 'area') {
-      const history = priceEngine.getTickHistory(assetId);
-      if (history.length < 2) return;
+      const fullHistory = priceEngine.getTickHistory(assetId);
+      if (fullHistory.length < 2) return;
+      const history = fullHistory.slice(-this.visibleTicksCount);
       this.drawAreaChart(history, openPositions);
     } else {
       const candles = priceEngine.getCandles(assetId, this.timeframe);
       if (candles.length < 2) return;
-      this.drawCandleChart(candles, openPositions);
+      this.drawCandleChart(candles.slice(-this.visibleTicksCount), openPositions);
     }
 
     // Crosshairs
@@ -91,38 +95,12 @@ export class ChartRenderer {
     }
   }
 
-  drawGrid(width, height) {
-    const ctx = this.ctx;
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.lineWidth = 1;
-
-    // Horizontal grid lines
-    const rows = 6;
-    for (let i = 1; i < rows; i++) {
-      const y = (height / rows) * i;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-    }
-
-    // Vertical grid lines
-    const cols = 8;
-    for (let j = 1; j < cols; j++) {
-      const x = (width / cols) * j;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
   drawAreaChart(data, openPositions) {
     const ctx = this.ctx;
-    const width = this.width - 70; // reserve 70px for right price scale
-    const height = this.height;
+    const rightMargin = 75;
+    const bottomMargin = 28;
+    const width = this.width - rightMargin;
+    const height = this.height - bottomMargin;
 
     // Calculate Min & Max Prices
     let minPrice = Infinity;
@@ -132,50 +110,46 @@ export class ChartRenderer {
       if (d.price > maxPrice) maxPrice = d.price;
     }
 
-    // Margin padding
-    const padding = (maxPrice - minPrice) * 0.15 || 1;
+    const diff = maxPrice - minPrice;
+    const padding = diff > 0 ? diff * 0.2 : 1;
     minPrice -= padding;
     maxPrice += padding;
 
-    const priceToY = (price) => height - ((price - minPrice) / (maxPrice - minPrice)) * (height - 40) - 20;
+    const priceToY = (p) => height - ((p - minPrice) / (maxPrice - minPrice)) * (height - 30) - 15;
     const indexToX = (idx) => (idx / (data.length - 1)) * width;
 
-    // Draw SMA Indicator if enabled
-    if (this.activeIndicators.sma && data.length >= 20) {
-      this.drawSMA(data, 20, indexToX, priceToY, 'rgba(245, 158, 11, 0.7)');
-    }
+    // 1. Background Grid Lines & Y-Axis Scale
+    this.drawGridAndScales(minPrice, maxPrice, data, width, height, rightMargin, bottomMargin);
 
-    // Draw Area gradient & line
+    // 2. Stepped / Smooth Line Path & Area Fill
     ctx.save();
+
+    // Area Fill Gradient
     ctx.beginPath();
     ctx.moveTo(0, height);
-
     for (let i = 0; i < data.length; i++) {
       const x = indexToX(i);
       const y = priceToY(data[i].price);
       if (i === 0) {
         ctx.lineTo(x, y);
       } else {
-        // Smooth bezier curve
         const prevX = indexToX(i - 1);
         const prevY = priceToY(data[i - 1].price);
-        const cpX = (prevX + x) / 2;
-        ctx.bezierCurveTo(cpX, prevY, cpX, y, x, y);
+        // Clean stepped-curve interpolation matching original Betabinary chart
+        ctx.bezierCurveTo((prevX + x) / 2, prevY, (prevX + x) / 2, y, x, y);
       }
     }
-
     ctx.lineTo(width, height);
     ctx.closePath();
 
-    // Area Fill
-    const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, 'rgba(6, 182, 212, 0.35)');
-    gradient.addColorStop(0.7, 'rgba(6, 182, 212, 0.05)');
-    gradient.addColorStop(1, 'rgba(6, 182, 212, 0)');
-    ctx.fillStyle = gradient;
+    const areaGradient = ctx.createLinearGradient(0, 0, 0, height);
+    areaGradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+    areaGradient.addColorStop(0.5, 'rgba(0, 208, 156, 0.03)');
+    areaGradient.addColorStop(1, 'rgba(0, 208, 156, 0)');
+    ctx.fillStyle = areaGradient;
     ctx.fill();
 
-    // Stroke line
+    // Line Stroke (Clean white/silver line with glow)
     ctx.beginPath();
     for (let i = 0; i < data.length; i++) {
       const x = indexToX(i);
@@ -185,25 +159,24 @@ export class ChartRenderer {
       } else {
         const prevX = indexToX(i - 1);
         const prevY = priceToY(data[i - 1].price);
-        const cpX = (prevX + x) / 2;
-        ctx.bezierCurveTo(cpX, prevY, cpX, y, x, y);
+        ctx.bezierCurveTo((prevX + x) / 2, prevY, (prevX + x) / 2, y, x, y);
       }
     }
-    ctx.strokeStyle = '#06b6d4';
-    ctx.lineWidth = 2.5;
-    ctx.shadowColor = 'rgba(6, 182, 212, 0.75)';
-    ctx.shadowBlur = 8;
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.4)';
+    ctx.shadowBlur = 4;
     ctx.stroke();
     ctx.restore();
 
-    // Pulsing Current Price Dot & Horizontal Line
+    // 3. Current Live Point & Horizontal Reference Line
     const lastPoint = data[data.length - 1];
     const currentX = width;
     const currentY = priceToY(lastPoint.price);
 
     ctx.save();
-    // Dashed price line
-    ctx.strokeStyle = 'rgba(6, 182, 212, 0.6)';
+    // Dashed horizontal price line
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
     ctx.setLineDash([4, 4]);
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -211,27 +184,90 @@ export class ChartRenderer {
     ctx.lineTo(this.width, currentY);
     ctx.stroke();
 
-    // Glowing dot
+    // Glowing White Head Dot
     ctx.setLineDash([]);
-    ctx.fillStyle = '#06b6d4';
-    ctx.shadowColor = '#06b6d4';
-    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.arc(currentX, currentY, 5, 0, Math.PI * 2);
+    ctx.arc(currentX, currentY, 4.5, 0, Math.PI * 2);
     ctx.fill();
+
+    // 100% Badge pill at current level
+    ctx.fillStyle = 'rgba(21, 34, 54, 0.95)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(currentX + 5, currentY - 10, 42, 20, 4);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 10px "JetBrains Mono", monospace';
+    ctx.fillText('100%', currentX + 11, currentY + 4);
+
     ctx.restore();
 
-    // Draw Active Positions Entry Lines
+    // 4. Draw Active Positions Markers
     this.drawOpenPositionsMarkers(openPositions, priceToY, width);
+  }
 
-    // Draw Right Axis Price Scale
-    this.drawPriceAxis(minPrice, maxPrice, lastPoint.price, currentY);
+  drawGridAndScales(minPrice, maxPrice, data, width, height, rightMargin, bottomMargin) {
+    const ctx = this.ctx;
+    ctx.save();
+
+    // Horizontal grid lines & Y-axis labels
+    const rows = 6;
+    ctx.fillStyle = '#627289';
+    ctx.font = '11px "JetBrains Mono", monospace';
+    ctx.textAlign = 'left';
+
+    for (let i = 0; i <= rows; i++) {
+      const y = (height / rows) * i;
+      const price = maxPrice - (i / rows) * (maxPrice - minPrice);
+
+      // Grid line
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+
+      // Y-axis label on right
+      ctx.fillText(price.toFixed(2), width + 10, y + 4);
+    }
+
+    // Vertical grid lines & Bottom Timestamps
+    const cols = 7;
+    ctx.textAlign = 'center';
+
+    for (let j = 0; j <= cols; j++) {
+      const x = (width / cols) * j;
+      
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+
+      // Timestamp at bottom
+      const dataIdx = Math.floor((j / cols) * (data.length - 1));
+      if (data[dataIdx]) {
+        const time = new Date(data[dataIdx].time).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        ctx.fillStyle = '#627289';
+        ctx.fillText(time, x, height + 18);
+      }
+    }
+
+    ctx.restore();
   }
 
   drawCandleChart(candles, openPositions) {
     const ctx = this.ctx;
-    const width = this.width - 70;
-    const height = this.height;
+    const rightMargin = 75;
+    const bottomMargin = 28;
+    const width = this.width - rightMargin;
+    const height = this.height - bottomMargin;
 
     let minPrice = Infinity;
     let maxPrice = -Infinity;
@@ -240,13 +276,14 @@ export class ChartRenderer {
       if (c.high > maxPrice) maxPrice = c.high;
     }
 
-    const padding = (maxPrice - minPrice) * 0.15 || 1;
+    const padding = (maxPrice - minPrice) * 0.2 || 1;
     minPrice -= padding;
     maxPrice += padding;
 
-    const priceToY = (price) => height - ((price - minPrice) / (maxPrice - minPrice)) * (height - 40) - 20;
+    const priceToY = (p) => height - ((p - minPrice) / (maxPrice - minPrice)) * (height - 30) - 15;
     const candleWidth = Math.max(3, (width / candles.length) * 0.7);
 
+    // Draw candles
     for (let i = 0; i < candles.length; i++) {
       const c = candles[i];
       const x = (i / (candles.length - 1)) * (width - candleWidth) + candleWidth / 2;
@@ -256,7 +293,7 @@ export class ChartRenderer {
       const lowY = priceToY(c.low);
 
       const isUp = c.close >= c.open;
-      const color = isUp ? '#10b981' : '#f43f5e';
+      const color = isUp ? '#00d09c' : '#ff4d6a';
 
       ctx.save();
       ctx.strokeStyle = color;
@@ -276,86 +313,35 @@ export class ChartRenderer {
       ctx.restore();
     }
 
-    const lastCandle = candles[candles.length - 1];
-    const currentY = priceToY(lastCandle.close);
-    this.drawOpenPositionsMarkers(openPositions, priceToY, width);
-    this.drawPriceAxis(minPrice, maxPrice, lastCandle.close, currentY);
-  }
-
-  drawSMA(data, period, indexToX, priceToY, color) {
-    const ctx = this.ctx;
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-
-    let started = false;
-    for (let i = period - 1; i < data.length; i++) {
-      let sum = 0;
-      for (let j = 0; j < period; j++) {
-        sum += data[i - j].price;
-      }
-      const sma = sum / period;
-      const x = indexToX(i);
-      const y = priceToY(sma);
-
-      if (!started) {
-        ctx.moveTo(x, y);
-        started = true;
-      } else {
-        ctx.lineTo(x, y);
-      }
-    }
-    ctx.stroke();
-    ctx.restore();
+    this.drawGridAndScales(minPrice, maxPrice, candles, width, height, rightMargin, bottomMargin);
   }
 
   drawOpenPositionsMarkers(openPositions, priceToY, width) {
     const ctx = this.ctx;
     for (const pos of openPositions) {
       const y = priceToY(pos.entryPrice);
-      const isCall = pos.prediction === 'higher' || pos.prediction === 'even' || pos.prediction === 'over';
-      const color = isCall ? '#10b981' : '#f43f5e';
+      const isCall = pos.direction === 'EVEN' || pos.direction === 'CALL' || pos.direction === 'OVER' || pos.direction === 'MATCHES';
+      const color = isCall ? '#00d09c' : '#ff4d6a';
 
       ctx.save();
-      // Entry Line
       ctx.strokeStyle = color;
-      ctx.setLineDash([6, 4]);
+      ctx.setLineDash([5, 3]);
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(width, y);
       ctx.stroke();
 
-      // Position Flag Tag
+      // Tag
       ctx.fillStyle = color;
-      ctx.fillRect(10, y - 12, 90, 24);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 11px Inter, sans-serif';
-      ctx.fillText(`${pos.prediction.toUpperCase()} $${pos.stake}`, 16, y + 4);
+      ctx.beginPath();
+      ctx.roundRect(10, y - 11, 85, 22, 4);
+      ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 10px "Inter", sans-serif';
+      ctx.fillText(`${pos.direction} $${pos.stake}`, 16, y + 4);
       ctx.restore();
     }
-  }
-
-  drawPriceAxis(minPrice, maxPrice, currentPrice, currentY) {
-    const ctx = this.ctx;
-    const width = this.width;
-    const height = this.height;
-
-    ctx.save();
-    // Axis background
-    ctx.fillStyle = '#080d17';
-    ctx.fillRect(width - 70, 0, 70, height);
-    ctx.strokeStyle = 'var(--border-subtle)';
-    ctx.strokeRect(width - 70, 0, 1, height);
-
-    // Current Price Badge
-    ctx.fillStyle = '#06b6d4';
-    ctx.fillRect(width - 68, currentY - 10, 66, 20);
-    ctx.fillStyle = '#000000';
-    ctx.font = 'bold 11px "JetBrains Mono", monospace';
-    ctx.fillText(currentPrice.toFixed(2), width - 64, currentY + 4);
-    ctx.restore();
   }
 
   drawCrosshair(pos) {
@@ -364,7 +350,6 @@ export class ChartRenderer {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.setLineDash([2, 2]);
     ctx.lineWidth = 1;
-
     ctx.beginPath();
     ctx.moveTo(pos.x, 0);
     ctx.lineTo(pos.x, this.height);
