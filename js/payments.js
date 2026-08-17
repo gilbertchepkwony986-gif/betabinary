@@ -44,7 +44,8 @@ export class PaymentsManager {
   constructor() {}
 
   // -------------------------------------------------------------------------
-  // M-Pesa STK Push Deposit via Paynecta
+  // M-Pesa Deposit via Paynecta Hosted Checkout
+  // Paynecta's flow: create session → open hosted URL → customer enters phone → PIN
   // -------------------------------------------------------------------------
   async processMpesaDeposit(phoneNumber, amountUsd, onProgress, onComplete, onError) {
     if (!phoneNumber || phoneNumber.replace(/\D/g, '').length < 9) {
@@ -58,44 +59,31 @@ export class PaymentsManager {
     }
 
     try {
-      onProgress?.({ step: 1, text: `Connecting to Paynecta…` });
+      onProgress?.({ step: 1, text: 'Creating Paynecta payment session…' });
 
       const result = await apiPost(`${API}/deposit/mpesa`, {
         phone: phoneNumber,
         amountUsd: amount
       });
 
-      if (result.fallback && result.sessionUrl) {
-        // STK Push not available — open Paynecta hosted checkout
-        onProgress?.({
-          step: 2,
-          text: 'Opening Paynecta secure checkout…',
-          checkoutUrl: result.sessionUrl
-        });
-        window.open(result.sessionUrl, '_blank');
-        this._toast('info', 'Complete your M-Pesa payment in the Paynecta checkout tab.');
-        onComplete?.({ txnId: result.reference, amount, kesAmount: result.kesAmount, redirect: true });
-        return;
-      }
-
       onProgress?.({
         step: 2,
-        text: `STK Push sent! KES ${result.kesAmount?.toLocaleString()} — Enter your M-Pesa PIN on your phone.`,
-        phone: phoneNumber,
+        text: `Opening Paynecta secure checkout for KES ${result.kesAmount?.toLocaleString()}…`,
         kes: result.kesAmount
       });
 
-      onProgress?.({ step: 3, text: 'Waiting for Paynecta confirmation…' });
-
-      const poll = await pollPaynectaStatus(result.reference);
-
-      if (poll.confirmed) {
-        this._creditDeposit(amount, `M-Pesa (${phoneNumber})`, result.reference);
-        onComplete?.({ txnId: result.reference, amount, kesAmount: result.kesAmount });
-        this._toast('success', `Deposit Confirmed! +$${amount.toFixed(2)} credited via M-Pesa.`);
-      } else {
-        onError?.('M-Pesa payment was not confirmed within 60 seconds. If you entered your PIN, funds will arrive shortly.');
+      // Open Paynecta’s hosted page — customer enters their M-Pesa phone and approves
+      if (result.sessionUrl) {
+        window.open(result.sessionUrl, '_blank');
       }
+
+      this._toast('info', 'Paynecta checkout opened — enter your M-Pesa number and PIN to complete payment.');
+      onComplete?.({
+        txnId: result.sessionId,
+        amount,
+        kesAmount: result.kesAmount,
+        redirect: true
+      });
 
     } catch (err) {
       console.error('[Payments] M-Pesa error:', err);
