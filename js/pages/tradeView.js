@@ -1,5 +1,6 @@
 /* ==========================================================================
-   BetaBinary - Trading Terminal View (tradeView.js)
+   BetaBinary - Exact Pixel-Perfect Trading Terminal View (tradeView.js)
+   Replicating original betabinary.ke/trade design
    ========================================================================== */
 
 import { stateManager, MARKETS_DATA } from '../state.js';
@@ -15,285 +16,391 @@ export function renderTradeView() {
   const state = stateManager.getState();
   const currentMarket = MARKETS_DATA.find(m => m.id === state.trading.selectedAssetId) || MARKETS_DATA[0];
   const user = state.user;
+  const isReal = user.accountType === 'real';
+  const balance = isReal ? user.realBalance : user.demoBalance;
 
   container.innerHTML = `
     <!-- Top Header Bar -->
     <header class="trade-top-header">
-      <div class="flex items-center gap-4">
-        <a href="#/" class="trade-logo">
-          <div class="trade-logo-icon">β</div>
-          Beta<span>Binary</span>
-        </a>
+      <div class="trade-header-left">
+        <!-- [B] Logo -->
+        <a href="#/" class="trade-app-logo" title="BetaBinary Home">B</a>
 
-        <!-- Current Asset Selector Pill -->
-        <div class="asset-selector-wrapper">
-          <button class="asset-current-btn" id="asset-picker-btn">
-            <div class="asset-icon-pill">⚡</div>
-            <div class="asset-info-text">
-              <span class="asset-info-name" id="hdr-asset-name">${currentMarket.name}</span>
-              <span class="asset-info-payout" id="hdr-asset-payout">Payout: up to ${currentMarket.payout}%</span>
-            </div>
-            <span class="text-xs text-muted" style="margin-left:0.25rem;">▼</span>
+        <!-- Header Nav Links -->
+        <nav class="trade-header-nav">
+          <a href="#/trade" class="trade-nav-item active">
+            <span class="icon">🏠</span> Trader's Hub
+          </a>
+          <button class="trade-nav-item" id="hdr-nav-deposit">
+            <span class="icon">⬇</span> Deposit
           </button>
+          <button class="trade-nav-item" id="hdr-nav-withdraw">
+            <span class="icon">⬆</span> Withdraw
+          </button>
+          <button class="trade-nav-item" id="hdr-nav-history">
+            <span class="icon">🕒</span> History
+          </button>
+          <button class="trade-nav-item" id="hdr-nav-chat">
+            <span class="icon">💬</span> Chat
+          </button>
+        </nav>
 
-          <!-- Asset Dropdown Menu (Hidden by default) -->
-          <div class="asset-dropdown-menu hidden" id="asset-dropdown-menu">
-            <div class="asset-search-box">
-              <input type="text" class="input-field text-xs" id="asset-search-input" placeholder="Search markets (e.g. Volatility, EUR, BTC)..." />
-            </div>
-            <div class="asset-categories-tabs" id="asset-cat-tabs">
-              <button class="asset-cat-btn active" data-cat="all">All Markets</button>
-              <button class="asset-cat-btn" data-cat="synthetics">Synthetics</button>
-              <button class="asset-cat-btn" data-cat="forex">Forex</button>
-              <button class="asset-cat-btn" data-cat="crypto">Crypto</button>
-              <button class="asset-cat-btn" data-cat="commodities">Commodities</button>
-            </div>
-            <div class="asset-list-scroll" id="asset-list-container">
-              <!-- Populated by JS -->
-            </div>
-          </div>
-        </div>
-
-        <!-- Live Price Indicator in Header -->
-        <div class="asset-current-price-badge">
-          <span class="text-xs text-muted" id="hdr-asset-symbol">${currentMarket.symbol}</span>
-          <span class="text-brand font-bold" id="hdr-live-price">---</span>
+        <!-- [BB] BetaBinary Trader Pill -->
+        <div class="trade-platform-pill" id="hdr-platform-pill">
+          <span class="trade-platform-badge">BB</span>
+          <span>BetaBinary Trader</span>
+          <span style="font-size:0.65rem; opacity:0.7;">▼</span>
         </div>
       </div>
 
-      <!-- Right Header Controls -->
-      <div class="trade-user-controls">
-        <!-- Account Switcher (Demo / Real) -->
+      <div class="trade-header-right">
+        <!-- Theme Toggle -->
+        <button class="trade-theme-btn" id="hdr-theme-btn" title="Toggle Light/Dark Theme">
+          ☀️
+        </button>
+
+        <!-- Account Pill [R] / [D] Balance -->
         <div class="relative">
-          <div class="account-selector-pill" id="account-switcher-btn">
-            <span class="account-type-tag ${user.accountType === 'demo' ? 'account-type-demo' : 'account-type-real'}" id="hdr-account-tag">
-              ${user.accountType.toUpperCase()}
-            </span>
-            <span class="account-balance-val" id="hdr-account-balance">
-              $${(user.accountType === 'demo' ? user.demoBalance : user.realBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-            <span class="text-xs text-muted">▼</span>
+          <div class="trade-balance-pill" id="hdr-account-pill">
+            <div class="trade-account-type-badge ${isReal ? 'real' : 'demo'}" id="hdr-acc-badge">
+              ${isReal ? 'R' : 'D'}
+            </div>
+            <div class="trade-balance-amount" id="hdr-balance-text">
+              $${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <span style="font-size:0.65rem; color:var(--trade-text-muted);">▼</span>
           </div>
 
           <!-- Account Dropdown Menu -->
           <div class="account-dropdown-menu hidden" id="account-dropdown-menu">
-            <div class="text-xs font-bold text-muted" style="text-transform:uppercase; letter-spacing:0.05em; padding:0.25rem 0.5rem;">Select Account</div>
-            
-            <div class="account-card-opt ${user.accountType === 'demo' ? 'selected' : ''}" data-acctype="demo">
+            <div style="font-size:0.75rem; font-weight:700; color:var(--trade-text-muted); text-transform:uppercase; margin-bottom:0.5rem;">
+              Select Trading Account
+            </div>
+            <div class="account-card-opt ${!isReal ? 'selected' : ''}" data-acctype="demo">
               <div>
-                <div class="font-bold text-sm text-warning">Demo Account</div>
-                <div class="text-xs text-muted">Practice trading balance</div>
+                <div style="font-weight:700; color:var(--trade-yellow);">Demo Account</div>
+                <div style="font-size:0.75rem; color:var(--trade-text-muted);">$10,000 virtual balance</div>
               </div>
-              <div class="text-right">
-                <div class="font-mono font-bold text-sm" id="menu-demo-balance">$${user.demoBalance.toFixed(2)}</div>
-                <button class="btn btn-ghost btn-sm text-xs text-brand" id="btn-reset-demo" style="padding:0; margin-top:2px;">Reset ($10k)</button>
+              <div style="text-align:right;">
+                <div class="mono font-bold" id="menu-demo-bal">$${user.demoBalance.toFixed(2)}</div>
+                <button class="btn-ghost" id="btn-reset-demo-bal" style="font-size:0.7rem; color:var(--trade-teal); padding:0;">Reset</button>
               </div>
             </div>
 
-            <div class="account-card-opt ${user.accountType === 'real' ? 'selected' : ''}" data-acctype="real">
+            <div class="account-card-opt ${isReal ? 'selected' : ''}" data-acctype="real">
               <div>
-                <div class="font-bold text-sm text-success">Real Account</div>
-                <div class="text-xs text-muted">KES ${(user.realBalance * user.exchangeRate).toLocaleString()}</div>
+                <div style="font-weight:700; color:var(--trade-teal);">Real Account (KES)</div>
+                <div style="font-size:0.75rem; color:var(--trade-text-muted);">KES ${(user.realBalance * user.exchangeRate).toLocaleString()}</div>
               </div>
-              <div class="text-right">
-                <div class="font-mono font-bold text-sm text-success" id="menu-real-balance">$${user.realBalance.toFixed(2)}</div>
+              <div style="text-align:right;">
+                <div class="mono font-bold" style="color:var(--trade-teal);" id="menu-real-bal">$${user.realBalance.toFixed(2)}</div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Deposit Button -->
-        <button class="btn btn-success btn-sm" id="btn-open-deposit">
-          <span>+</span> Deposit
+        <!-- Big Green Deposit Button -->
+        <button class="trade-btn-deposit-header" id="btn-header-deposit">
+          Deposit
         </button>
 
-        <!-- Withdraw Button -->
-        <button class="btn btn-secondary btn-sm" id="btn-open-withdraw">
-          Withdraw
+        <!-- Notification Bell -->
+        <button class="trade-icon-btn" id="btn-header-notif" title="Notifications">
+          🔔
         </button>
-
-        <!-- Settings Link -->
-        <a href="#/settings/profile" class="btn btn-ghost btn-sm" title="Account Settings">
-          ⚙️
-        </a>
 
         <!-- Profile Avatar -->
-        <div class="user-avatar-circle" style="width:34px; height:34px; font-size:0.8rem; cursor:pointer;" onclick="location.hash='#/settings/profile'">
-          KP
-        </div>
+        <button class="trade-user-avatar" id="btn-header-profile" title="Settings & Profile" onclick="location.hash='#/settings/profile'">
+          👤
+        </button>
       </div>
     </header>
 
-    <!-- Main Workspace (Chart on Left, Order Pad on Right) -->
-    <div class="trade-main-workspace">
-      <!-- Chart Area -->
-      <div class="trade-chart-area">
-        <!-- Chart Toolbar -->
-        <div class="chart-toolbar">
-          <div class="chart-tool-group">
-            <button class="chart-btn active" data-charttype="area">Area</button>
-            <button class="chart-btn" data-charttype="candles">Candles</button>
-          </div>
+    <!-- 3-Column Main Workspace -->
+    <div class="trade-main-layout">
+      <!-- --------------------------------------------------------------------
+           COLUMN 1: LEFT SIDEBAR (Positions & Activity)
+           -------------------------------------------------------------------- -->
+      <aside class="trade-left-sidebar">
+        <div class="trade-sidebar-tabs">
+          <button class="trade-sidebar-tab-btn active" data-sidebartab="open" id="tab-open-pos">
+            Open (<span id="count-open-pos">${state.openPositions.length}</span>)
+          </button>
+          <button class="trade-sidebar-tab-btn" data-sidebartab="closed" id="tab-closed-pos">
+            Closed (<span id="count-closed-pos">${state.tradeHistory.length}</span>)
+          </button>
+          <button class="trade-sidebar-tab-btn" data-sidebartab="transactions" id="tab-trans-pos">
+            Transactions
+          </button>
+        </div>
 
-          <div class="chart-tool-group">
-            <button class="chart-btn active" data-tf="1">1s</button>
-            <button class="chart-btn" data-tf="5">5s</button>
-            <button class="chart-btn" data-tf="15">15s</button>
-            <button class="chart-btn" data-tf="60">1m</button>
-            <button class="chart-btn" data-tf="300">5m</button>
-          </div>
+        <div class="trade-sidebar-content" id="sidebar-positions-container">
+          <!-- Populated dynamically: empty state or trade cards -->
+        </div>
 
-          <div class="chart-tool-group">
-            <button class="chart-btn active" data-ind="sma">SMA (20)</button>
-            <button class="chart-btn" data-ind="bollinger">Bollinger</button>
-            <button class="chart-btn" data-ind="rsi">RSI</button>
+        <div class="trade-sidebar-footer" id="sidebar-footer-text">
+          <span id="footer-open-count">${state.openPositions.length}</span> open positions
+        </div>
+      </aside>
+
+      <!-- --------------------------------------------------------------------
+           COLUMN 2: CENTER CHART VIEWPORT
+           -------------------------------------------------------------------- -->
+      <main class="trade-center-viewport">
+        <!-- Floating Asset Badge (Top-Left of Chart) -->
+        <div class="trade-floating-asset-card" id="floating-asset-btn">
+          <div class="trade-asset-icon-badge">📊</div>
+          <div class="trade-asset-text-block">
+            <div class="trade-asset-title-row">
+              <span id="asset-name-label">${currentMarket.name}</span>
+              <span style="font-size:0.7rem; color:var(--trade-text-muted);">▼</span>
+            </div>
+            <div class="trade-asset-price-row">
+              <span class="trade-asset-live-price" id="asset-live-price">---</span>
+              <span class="trade-asset-price-delta up" id="asset-live-change">+0.00% 📈</span>
+            </div>
           </div>
+        </div>
+
+        <!-- Asset Picker Modal Dropdown (Hidden by default) -->
+        <div class="trade-asset-picker-modal hidden" id="asset-picker-modal">
+          <div class="asset-search-box">
+            <input type="text" class="input-field text-xs" id="asset-search-input" placeholder="Search markets (Volatility, Boom, Forex)..." />
+          </div>
+          <div class="asset-categories-tabs" id="asset-cat-tabs">
+            <button class="asset-cat-btn active" data-cat="all">All</button>
+            <button class="asset-cat-btn" data-cat="synthetics">Synthetics</button>
+            <button class="asset-cat-btn" data-cat="forex">Forex</button>
+            <button class="asset-cat-btn" data-cat="crypto">Crypto</button>
+          </div>
+          <div class="asset-list-scroll" id="asset-list-scroll">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Left Vertical Chart Tools -->
+        <div class="trade-chart-left-tools">
+          <button class="trade-chart-tool-btn active" id="tool-tf" title="Timeframe (1T / 1s)">1T</button>
+          <button class="trade-chart-tool-btn" id="tool-chart-type" title="Chart Style (Line / Candles)">📈</button>
+          <button class="trade-chart-tool-btn" id="tool-indicators" title="Indicators (SMA, Bollinger)">📊</button>
+          <button class="trade-chart-tool-btn" id="tool-crosshair" title="Crosshairs">🎯</button>
+          <button class="trade-chart-tool-btn" id="tool-snapshot" title="Snapshot Chart">📥</button>
+        </div>
+
+        <!-- Bottom-Left Zoom Controls -->
+        <div class="trade-chart-zoom-tools">
+          <button class="trade-zoom-btn" id="btn-zoom-in" title="Zoom In">+</button>
+          <button class="trade-zoom-btn" id="btn-zoom-reset" title="Reset Zoom">⊙</button>
+          <button class="trade-zoom-btn" id="btn-zoom-out" title="Zoom Out">-</button>
         </div>
 
         <!-- Canvas Container -->
-        <div class="chart-canvas-wrapper">
+        <div class="trade-chart-canvas-container">
           <canvas id="trading-canvas"></canvas>
+        </div>
 
-          <!-- Floating Price Overlay -->
-          <div class="chart-price-overlay">
-            <div class="chart-price-val">
-              <span id="overlay-price-main">0.00</span>
-              <span class="chart-price-last-digit" id="overlay-last-digit">0</span>
+        <!-- Bottom Floating Digit Frequency Analyzer Bar (0 - 9) -->
+        <div class="trade-chart-digit-bar" id="digit-analyzer-bar">
+          <!-- 10 circular digit cards rendered by JS -->
+        </div>
+      </main>
+
+      <!-- --------------------------------------------------------------------
+           COLUMN 3: RIGHT ORDER PAD / TRADE CONTROLS
+           -------------------------------------------------------------------- -->
+      <aside class="trade-right-panel">
+        <!-- Learn Link -->
+        <a href="#/" class="trade-learn-link" id="btn-learn-trade">
+          <span>ⓘ</span> Learn about this trade type
+        </a>
+
+        <!-- Contract Selector Button -->
+        <div class="relative">
+          <div class="trade-contract-selector-row" id="btn-contract-selector">
+            <div class="trade-contract-icons">
+              <span style="font-size:0.75rem; color:var(--trade-text-muted);">▼</span>
+              <div class="trade-contract-icon-box" style="background:rgba(0,208,156,0.15); color:var(--trade-teal);" id="contract-icon-box">▦ △</div>
+              <span class="trade-contract-name-text" id="contract-name-label">Even/Odd</span>
             </div>
-            <div class="chart-price-change" id="overlay-price-change">
-              <span class="text-success" id="overlay-delta">▲ +0.00%</span>
+            <span style="font-size:0.75rem; color:var(--trade-text-muted);">›</span>
+          </div>
+
+          <!-- Contract Type Modal Popup -->
+          <div class="trade-contract-picker-modal hidden" id="contract-picker-modal">
+            <div class="trade-contract-opt-item ${state.trading.contractType === 'even_odd' ? 'active' : ''}" data-ctype="even_odd">
+              <span style="color:var(--trade-teal);">▦ △</span>
+              <div>
+                <div style="font-weight:700; font-size:0.88rem;">Even / Odd</div>
+                <div style="font-size:0.72rem; color:var(--trade-text-muted);">Payout: 95.22%</div>
+              </div>
+            </div>
+            <div class="trade-contract-opt-item ${state.trading.contractType === 'rise_fall' ? 'active' : ''}" data-ctype="rise_fall">
+              <span style="color:var(--trade-teal);">▲ ▼</span>
+              <div>
+                <div style="font-weight:700; font-size:0.88rem;">Rise / Fall</div>
+                <div style="font-size:0.72rem; color:var(--trade-text-muted);">Payout: 95.00%</div>
+              </div>
+            </div>
+            <div class="trade-contract-opt-item ${state.trading.contractType === 'over_under' ? 'active' : ''}" data-ctype="over_under">
+              <span style="color:var(--trade-yellow);">📈 📉</span>
+              <div>
+                <div style="font-weight:700; font-size:0.88rem;">Over / Under</div>
+                <div style="font-size:0.72rem; color:var(--trade-text-muted);">Digit target prediction</div>
+              </div>
+            </div>
+            <div class="trade-contract-opt-item ${state.trading.contractType === 'matches_differs' ? 'active' : ''}" data-ctype="matches_differs">
+              <span style="color:var(--trade-blue);">= ≠</span>
+              <div>
+                <div style="font-weight:700; font-size:0.88rem;">Matches / Differs</div>
+                <div style="font-size:0.72rem; color:var(--trade-text-muted);">Payout: up to 950%</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Last Digit Frequency Analyzer Bar -->
-        <div class="digit-analyzer-bar">
-          <div class="digit-analyzer-title">Last Digit Stats (100 Ticks)</div>
-          <div class="digit-bars-grid" id="digit-analyzer-grid">
-            <!-- 0 through 9 bars rendered dynamically -->
+        <!-- Trade Mode (Auto / Manual) -->
+        <div class="trade-mode-section">
+          <div class="trade-mode-header">
+            <span class="trade-mode-title">Trade Mode</span>
+            <span class="trade-mode-subtitle" id="trade-mode-hint">Runs until target hit</span>
           </div>
-        </div>
-      </div>
 
-      <!-- Right Trading Sidebar / Order Pad -->
-      <aside class="trade-order-pad">
-        <!-- Contract Type Selector -->
-        <div class="contract-type-nav">
-          <button class="contract-tab-btn ${state.trading.contractType === 'rise_fall' ? 'active' : ''}" data-type="rise_fall">Rise / Fall</button>
-          <button class="contract-tab-btn ${state.trading.contractType === 'even_odd' ? 'active' : ''}" data-type="even_odd">Even / Odd</button>
-          <button class="contract-tab-btn ${state.trading.contractType === 'over_under' ? 'active' : ''}" data-type="over_under">Over / Under</button>
-          <button class="contract-tab-btn ${state.trading.contractType === 'matches_differs' ? 'active' : ''}" data-type="matches_differs">Matches / Differs</button>
-        </div>
-
-        <!-- Prediction Digit Selector (For Over/Under and Matches/Differs) -->
-        <div class="digit-selector-group ${state.trading.contractType === 'rise_fall' || state.trading.contractType === 'even_odd' ? 'hidden' : ''}" id="digit-pick-container">
-          <label class="form-label">
-            <span>Prediction Target Digit</span>
-            <span class="text-brand mono" id="selected-target-digit-lbl">${state.trading.selectedDigit}</span>
-          </label>
-          <div class="digit-buttons-row">
-            ${[0,1,2,3,4,5,6,7,8,9].map(d => `
-              <button class="digit-pick-btn ${state.trading.selectedDigit === d ? 'active' : ''}" data-digit="${d}">${d}</button>
-            `).join('')}
+          <div class="trade-mode-toggle-pill">
+            <button class="trade-mode-btn ${state.trading.tradeMode === 'auto' ? 'active' : ''}" id="btn-mode-auto">
+              Auto
+            </button>
+            <button class="trade-mode-btn ${state.trading.tradeMode === 'manual' ? 'active' : ''}" id="btn-mode-manual">
+              Manual
+            </button>
           </div>
         </div>
 
-        <!-- Duration Picker -->
-        <div>
-          <label class="form-label">
-            <span>Duration</span>
-            <span class="text-secondary mono" id="duration-display-lbl">${state.trading.durationValue} Ticks</span>
-          </label>
-          <div class="duration-tabs">
-            <button class="duration-tab ${state.trading.durationType === 'ticks' ? 'active' : ''}" data-durtype="ticks">Ticks</button>
-            <button class="duration-tab ${state.trading.durationType === 'seconds' ? 'active' : ''}" data-durtype="seconds">Seconds</button>
-          </div>
-          <div class="duration-presets" id="duration-presets-container">
-            ${state.trading.durationType === 'ticks' 
-              ? [1, 2, 3, 5, 10].map(t => `<button class="duration-preset-btn ${state.trading.durationValue === t ? 'active' : ''}" data-val="${t}">${t} T</button>`).join('')
-              : [15, 30, 60, 120, 300].map(s => `<button class="duration-preset-btn ${state.trading.durationValue === s ? 'active' : ''}" data-val="${s}">${s}s</button>`).join('')
-            }
-          </div>
-        </div>
-
-        <!-- Stake Amount Input -->
-        <div class="form-group" style="margin-bottom:0.25rem;">
-          <label class="form-label">
-            <span>Stake Amount (USD)</span>
-            <span class="text-xs text-muted">Min $1</span>
-          </label>
-          <div class="input-wrapper">
-            <span class="input-icon-left text-brand font-bold">$</span>
-            <input type="number" class="input-field input-with-left-icon mono font-bold" id="stake-input" value="${state.trading.stake}" min="1" step="1" />
-          </div>
-          <div class="stake-quick-chips">
-            <button class="stake-chip" data-add="5">+$5</button>
-            <button class="stake-chip" data-add="10">+$10</button>
-            <button class="stake-chip" data-add="25">+$25</button>
-            <button class="stake-chip" data-add="50">+$50</button>
-            <button class="stake-chip" data-add="100">+$100</button>
-          </div>
-        </div>
-
-        <!-- Payout Calculation Box -->
-        <div class="payout-calculation-box">
-          <div class="payout-row">
-            <span class="text-muted">Return Rate</span>
-            <span class="payout-val text-brand" id="calc-return-rate">+95%</span>
-          </div>
-          <div class="payout-row">
-            <span class="text-muted">Net Profit</span>
-            <span class="payout-val text-success" id="calc-net-profit">+$9.50</span>
-          </div>
-          <div class="payout-row" style="border-top:1px solid rgba(255,255,255,0.05); padding-top:0.35rem; margin-top:0.2rem;">
-            <span class="font-bold text-sm">Total Potential Payout</span>
-            <span class="payout-val payout-total mono" id="calc-total-payout">$19.50</span>
-          </div>
-        </div>
-
-        <!-- Big Execution Buttons -->
-        <div class="trade-action-buttons" id="action-buttons-container">
-          <button class="btn-call-action" id="btn-trade-call">
-            <div class="action-btn-title">
-              <span>▲</span> <span id="call-btn-text">HIGHER</span>
+        <!-- Auto Parameters Rows (Target Profit, Target Loss, Loss Multiple) -->
+        <div class="trade-auto-params ${state.trading.tradeMode === 'manual' ? 'hidden' : ''}" id="auto-params-box">
+          <!-- Target Profit -->
+          <div class="trade-param-row">
+            <div class="trade-param-label profit">
+              <span class="icon">🎯</span> Target Profit
             </div>
-            <div class="action-btn-payout" id="call-btn-payout">Payout: $19.50 (+95%)</div>
+            <div class="trade-param-input-box">
+              <span>$</span>
+              <input type="number" id="input-target-profit" value="${state.botConfig.targetProfit || 200}" min="1" />
+            </div>
+          </div>
+
+          <!-- Target Loss -->
+          <div class="trade-param-row">
+            <div class="trade-param-label loss">
+              <span class="icon">⚠️</span> Target Loss
+            </div>
+            <div class="trade-param-input-box">
+              <span>$</span>
+              <input type="number" id="input-target-loss" value="${state.botConfig.stopLoss || 999}" min="1" />
+            </div>
+          </div>
+
+          <!-- Loss Multiple -->
+          <div class="trade-param-row">
+            <div class="trade-param-label multiple">
+              <span class="icon">📉</span> Loss Multiple
+            </div>
+            <div class="trade-param-input-box">
+              <span>×</span>
+              <input type="number" id="input-loss-multiple" value="${state.botConfig.multiplier || 2}" min="1" step="0.1" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual Parameters Rows (Duration, Stake) -->
+        <div class="trade-manual-params ${state.trading.tradeMode === 'auto' ? 'hidden' : ''}" id="manual-params-box">
+          <!-- Duration -->
+          <div>
+            <div class="trade-mode-header" style="margin-bottom:0.35rem;">
+              <span class="trade-mode-title">Duration</span>
+              <span class="trade-mode-subtitle" id="lbl-duration-val">${state.trading.durationValue} Ticks</span>
+            </div>
+            <div class="duration-presets">
+              ${[1, 2, 3, 5, 10].map(t => `
+                <button class="duration-preset-btn ${state.trading.durationValue === t ? 'active' : ''}" data-tickval="${t}">${t} T</button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Stake Amount Input -->
+          <div style="margin-top:0.35rem;">
+            <div class="trade-mode-header" style="margin-bottom:0.35rem;">
+              <span class="trade-mode-title">Stake Amount</span>
+              <span class="trade-mode-subtitle">Min $1</span>
+            </div>
+            <div class="trade-param-row" style="background:var(--trade-bg-input);">
+              <div class="trade-param-label">
+                <span style="color:var(--trade-teal); font-weight:800;">$</span> Stake
+              </div>
+              <input type="number" id="input-manual-stake" value="${state.trading.stake || 10}" min="1" step="1" 
+                style="background:transparent; border:none; color:#fff; font-family:'JetBrains Mono',monospace; font-weight:800; font-size:1rem; text-align:right; outline:none; width:90px;" />
+            </div>
+            <div class="stake-quick-chips" style="margin-top:0.4rem;">
+              <button class="stake-chip" data-addstake="5">+$5</button>
+              <button class="stake-chip" data-addstake="10">+$10</button>
+              <button class="stake-chip" data-addstake="25">+$25</button>
+              <button class="stake-chip" data-addstake="50">+$50</button>
+              <button class="stake-chip" data-addstake="100">+$100</button>
+            </div>
+          </div>
+
+          <!-- Prediction Target Digit Picker for Over/Under / Matches/Differs -->
+          <div id="manual-digit-picker" class="${state.trading.contractType === 'over_under' || state.trading.contractType === 'matches_differs' ? '' : 'hidden'}" style="margin-top:0.35rem;">
+            <div class="trade-mode-header" style="margin-bottom:0.35rem;">
+              <span class="trade-mode-title">Prediction Digit</span>
+              <span class="trade-mode-subtitle" id="lbl-selected-digit">${state.trading.selectedDigit}</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:4px;">
+              ${[0,1,2,3,4,5,6,7,8,9].map(d => `
+                <button class="digit-pick-btn ${state.trading.selectedDigit === d ? 'active' : ''}" data-targetdigit="${d}" style="padding:6px; font-weight:bold; font-size:0.85rem;">${d}</button>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Big Action Buttons Stack -->
+        <div class="trade-action-buttons-stack" id="trade-buttons-stack">
+          <!-- Button 1: Even / Higher / Over / Matches -->
+          <button class="trade-btn-action-primary" id="btn-action-call">
+            <div class="trade-btn-action-label" id="lbl-btn-call">
+              <span>▦</span> Even
+            </div>
+            <div class="trade-btn-action-metric">
+              <div class="trade-prob-bar-track">
+                <div class="trade-prob-bar-fill-teal"></div>
+              </div>
+              <span class="trade-prob-pct-teal" id="pct-btn-call">95.22%</span>
+            </div>
           </button>
 
-          <button class="btn-put-action" id="btn-trade-put">
-            <div class="action-btn-title">
-              <span>▼</span> <span id="put-btn-text">LOWER</span>
+          <!-- Payout Info Row -->
+          <div class="trade-payout-info-row">
+            <span>Payout</span>
+            <span class="trade-payout-info-val" id="lbl-payout-amount">19.52 USD ⓘ</span>
+          </div>
+
+          <!-- Button 2: Odd / Lower / Under / Differs -->
+          <button class="trade-btn-action-danger" id="btn-action-put">
+            <div class="trade-btn-action-label" id="lbl-btn-put">
+              <span>△</span> Odd
             </div>
-            <div class="action-btn-payout" id="put-btn-payout">Payout: $19.50 (+95%)</div>
+            <div class="trade-btn-action-metric">
+              <div class="trade-prob-bar-track">
+                <div class="trade-prob-bar-fill-red"></div>
+              </div>
+              <span class="trade-prob-pct-red" id="pct-btn-put">95.22%</span>
+            </div>
           </button>
         </div>
       </aside>
     </div>
-
-    <!-- Bottom Activity / History / Bot Panel -->
-    <div class="trade-bottom-activity">
-      <div class="activity-tabs-header">
-        <button class="activity-tab-btn active" data-acttab="positions">
-          Open Positions <span class="activity-count-badge" id="open-positions-count">${state.openPositions.length}</span>
-        </button>
-        <button class="activity-tab-btn" data-acttab="history">
-          Trade History
-        </button>
-        <button class="activity-tab-btn" data-acttab="bot">
-          🤖 Auto-Trading Bot
-        </button>
-        <button class="activity-tab-btn" data-acttab="transactions">
-          Transactions
-        </button>
-      </div>
-
-      <div class="activity-content-scroll" id="activity-content-container">
-        <!-- Populated dynamically based on active tab -->
-      </div>
-    </div>
   `;
 
-  // Attach interactive controllers after DOM insertion
+  // Attach dynamic controllers after DOM render
   setTimeout(() => {
     initTradeViewControllers(container);
   }, 0);
@@ -301,557 +408,542 @@ export function renderTradeView() {
   return container;
 }
 
+/* ==========================================================================
+   INTERACTIVE CONTROLLERS
+   ========================================================================== */
 function initTradeViewControllers(container) {
+  const state = stateManager.getState();
+
+  // 1. Initialize Canvas Chart
   const canvas = container.querySelector('#trading-canvas');
-  if (!canvas) return;
+  let chartRenderer = null;
+  if (canvas) {
+    chartRenderer = new ChartRenderer(canvas);
+  }
 
-  const chartRenderer = new ChartRenderer(canvas);
-  let activeActivityTab = 'positions';
+  // 2. Real-Time Price Listener & Digit Stats Renderer
+  const onPriceUpdate = (e) => {
+    const { assetId, price, change, tick, lastDigit, stats } = e.detail;
+    const currentState = stateManager.getState();
+    if (assetId !== currentState.trading.selectedAssetId) return;
 
-  // Populate Asset Dropdown List
-  const assetListEl = container.querySelector('#asset-list-container');
-  function populateAssetList(filterCat = 'all', searchQuery = '') {
-    if (!assetListEl) return;
-    const currentAssetId = stateManager.getState().trading.selectedAssetId;
-    let list = MARKETS_DATA;
-
-    if (filterCat !== 'all') {
-      list = list.filter(m => m.category === filterCat);
+    // Update Floating Asset Card
+    const livePriceEl = container.querySelector('#asset-live-price');
+    const liveChangeEl = container.querySelector('#asset-live-change');
+    if (livePriceEl) {
+      livePriceEl.textContent = price.toFixed(currentState.markets[assetId]?.decimals || 2);
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(m => m.name.toLowerCase().includes(q) || m.symbol.toLowerCase().includes(q));
+    if (liveChangeEl) {
+      const isUp = change >= 0;
+      liveChangeEl.className = `trade-asset-price-delta ${isUp ? 'up' : 'down'}`;
+      liveChangeEl.textContent = `${isUp ? '+' : ''}${change.toFixed(2)}% ${isUp ? '📈' : '📉'}`;
     }
 
-    assetListEl.innerHTML = list.map(m => `
-      <div class="asset-item-row ${m.id === currentAssetId ? 'active' : ''}" data-assetid="${m.id}">
-        <div class="flex items-center gap-2">
-          <div class="asset-icon-pill" style="width:24px; height:24px; font-size:0.7rem;">⚡</div>
-          <div>
-            <div class="font-bold text-xs">${m.name}</div>
-            <div class="text-xs text-muted">${m.symbol}</div>
-          </div>
-        </div>
-        <div class="text-right">
-          <div class="font-mono text-xs font-bold text-brand" id="asset-item-price-${m.id}">$${m.basePrice.toFixed(m.precision)}</div>
-          <span class="badge badge-success">+${m.payout}%</span>
-        </div>
-      </div>
-    `).join('');
+    // Render Canvas
+    if (chartRenderer) {
+      chartRenderer.render(assetId, currentState.openPositions);
+    }
 
-    // Bind item click
-    assetListEl.querySelectorAll('.asset-item-row').forEach(row => {
-      row.addEventListener('click', () => {
-        const assetId = row.getAttribute('data-assetid');
-        stateManager.setSelectedAsset(assetId);
-        container.querySelector('#asset-dropdown-menu').classList.add('hidden');
-        updateHeaderAssetDisplay();
+    // Render Bottom 10 Digit Chips (0-9)
+    renderDigitAnalyzer(container, stats, lastDigit);
+
+    // Refresh Left Sidebar Position Cards & Count
+    renderSidebarPositions(container);
+  };
+
+  window.addEventListener('betabinary_tick', onPriceUpdate);
+
+  // 3. Trade Mode Switcher (Auto / Manual)
+  const btnAuto = container.querySelector('#btn-mode-auto');
+  const btnManual = container.querySelector('#btn-mode-manual');
+  const autoBox = container.querySelector('#auto-params-box');
+  const manualBox = container.querySelector('#manual-params-box');
+  const modeHint = container.querySelector('#trade-mode-hint');
+
+  if (btnAuto && btnManual) {
+    btnAuto.addEventListener('click', () => {
+      btnAuto.classList.add('active');
+      btnManual.classList.remove('active');
+      autoBox.classList.remove('hidden');
+      manualBox.classList.add('hidden');
+      modeHint.textContent = 'Runs until target hit';
+      stateManager.update(s => { s.trading.tradeMode = 'auto'; });
+    });
+
+    btnManual.addEventListener('click', () => {
+      btnManual.classList.add('active');
+      btnAuto.classList.remove('active');
+      manualBox.classList.remove('hidden');
+      autoBox.classList.add('hidden');
+      modeHint.textContent = 'Single contract trade';
+      stateManager.update(s => { s.trading.tradeMode = 'manual'; });
+    });
+  }
+
+  // 4. Contract Type Selector Dropdown Modal
+  const btnContract = container.querySelector('#btn-contract-selector');
+  const contractModal = container.querySelector('#contract-picker-modal');
+
+  if (btnContract && contractModal) {
+    btnContract.addEventListener('click', (e) => {
+      e.stopPropagation();
+      contractModal.classList.toggle('hidden');
+    });
+
+    container.querySelectorAll('.trade-contract-opt-item').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const ctype = opt.getAttribute('data-ctype');
+        stateManager.update(s => { s.trading.contractType = ctype; });
+        updateContractUI(container, ctype);
+        contractModal.classList.add('hidden');
       });
     });
   }
 
-  populateAssetList();
+  // 5. Asset Selector Modal
+  const assetBtn = container.querySelector('#floating-asset-btn');
+  const assetModal = container.querySelector('#asset-picker-modal');
+  const assetScroll = container.querySelector('#asset-list-scroll');
 
-  // Search input
-  const searchInput = container.querySelector('#asset-search-input');
-  searchInput.addEventListener('input', (e) => {
-    const activeCat = container.querySelector('.asset-cat-btn.active').getAttribute('data-cat');
-    populateAssetList(activeCat, e.target.value);
-  });
-
-  // Category buttons
-  container.querySelectorAll('.asset-cat-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      container.querySelectorAll('.asset-cat-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      populateAssetList(btn.getAttribute('data-cat'), searchInput.value);
-    });
-  });
-
-  // Toggle Asset Dropdown
-  const assetPickerBtn = container.querySelector('#asset-picker-btn');
-  const assetDropdown = container.querySelector('#asset-dropdown-menu');
-  assetPickerBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    assetDropdown.classList.toggle('hidden');
-  });
-
-  // Account Switcher Dropdown
-  const acctSwitcherBtn = container.querySelector('#account-switcher-btn');
-  const acctDropdown = container.querySelector('#account-dropdown-menu');
-  acctSwitcherBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    acctDropdown.classList.toggle('hidden');
-  });
-
-  acctDropdown.querySelectorAll('.account-card-opt').forEach(opt => {
-    opt.addEventListener('click', () => {
-      const type = opt.getAttribute('data-acctype');
-      stateManager.switchAccount(type);
-      acctDropdown.classList.add('hidden');
-    });
-  });
-
-  // Reset Demo Balance button
-  const resetDemoBtn = container.querySelector('#btn-reset-demo');
-  if (resetDemoBtn) {
-    resetDemoBtn.addEventListener('click', (e) => {
+  if (assetBtn && assetModal && assetScroll) {
+    assetBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      stateManager.resetDemoBalance();
+      assetModal.classList.toggle('hidden');
+      renderAssetList(assetScroll, 'all');
+    });
+
+    // Asset Category Tabs
+    container.querySelectorAll('.asset-cat-btn').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        e.stopPropagation();
+        container.querySelectorAll('.asset-cat-btn').forEach(b => b.classList.remove('active'));
+        tab.classList.add('active');
+        renderAssetList(assetScroll, tab.getAttribute('data-cat'));
+      });
+    });
+
+    // Asset Search Input
+    const searchInput = container.querySelector('#asset-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        renderAssetList(assetScroll, 'all', q);
+      });
+    }
+  }
+
+  // 6. Header Navigation Buttons
+  container.querySelector('#btn-header-deposit')?.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('betabinary_open_modal', { detail: { modal: 'deposit' } }));
+  });
+  container.querySelector('#hdr-nav-deposit')?.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('betabinary_open_modal', { detail: { modal: 'deposit' } }));
+  });
+  container.querySelector('#hdr-nav-withdraw')?.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('betabinary_open_modal', { detail: { modal: 'withdraw' } }));
+  });
+  container.querySelector('#hdr-nav-chat')?.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('betabinary_open_modal', { detail: { modal: 'chat' } }));
+  });
+  container.querySelector('#hdr-nav-history')?.addEventListener('click', () => {
+    const closedTab = container.querySelector('#tab-closed-pos');
+    if (closedTab) closedTab.click();
+  });
+
+  // 7. Account Switcher (Real / Demo)
+  const accPill = container.querySelector('#hdr-account-pill');
+  const accMenu = container.querySelector('#account-dropdown-menu');
+  if (accPill && accMenu) {
+    accPill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      accMenu.classList.toggle('hidden');
+    });
+
+    accMenu.querySelectorAll('.account-card-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const type = opt.getAttribute('data-acctype');
+        stateManager.update(s => { s.user.accountType = type; });
+        updateAccountUI(container);
+        accMenu.classList.add('hidden');
+        window.dispatchEvent(new CustomEvent('betabinary_toast', {
+          detail: { type: 'info', message: `Switched to ${type.toUpperCase()} trading account.` }
+        }));
+      });
+    });
+
+    container.querySelector('#btn-reset-demo-bal')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      stateManager.update(s => { s.user.demoBalance = 10000; });
+      updateAccountUI(container);
       window.dispatchEvent(new CustomEvent('betabinary_toast', {
-        detail: { type: 'success', message: 'Demo Account Balance reset to $10,000.00' }
+        detail: { type: 'success', message: 'Demo account balance reset to $10,000.00' }
       }));
     });
   }
 
-  // Close dropdowns on outside click
+  // 8. Close dropdowns on outside click
   document.addEventListener('click', () => {
-    assetDropdown.classList.add('hidden');
-    acctDropdown.classList.add('hidden');
+    if (contractModal) contractModal.classList.add('hidden');
+    if (assetModal) assetModal.classList.add('hidden');
+    if (accMenu) accMenu.classList.add('hidden');
   });
 
-  // Open Deposit & Withdraw Modals
-  container.querySelector('#btn-open-deposit').addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('betabinary_open_modal', { detail: { modal: 'deposit' } }));
-  });
-  container.querySelector('#btn-open-withdraw').addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('betabinary_open_modal', { detail: { modal: 'withdraw' } }));
-  });
-
-  // Chart Toolbars
-  container.querySelectorAll('.chart-btn[data-charttype]').forEach(btn => {
+  // 9. Left Sidebar Tabs (Open / Closed / Transactions)
+  container.querySelectorAll('.trade-sidebar-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      container.querySelectorAll('.chart-btn[data-charttype]').forEach(b => b.classList.remove('active'));
+      container.querySelectorAll('.trade-sidebar-tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      chartRenderer.setChartType(btn.getAttribute('data-charttype'));
+      renderSidebarPositions(container, btn.getAttribute('data-sidebartab'));
     });
   });
 
-  container.querySelectorAll('.chart-btn[data-tf]').forEach(btn => {
+  // 10. Manual Controls (Duration & Stake Quick Chips)
+  container.querySelectorAll('.duration-preset-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      container.querySelectorAll('.chart-btn[data-tf]').forEach(b => b.classList.remove('active'));
+      const val = Number(btn.getAttribute('data-tickval'));
+      container.querySelectorAll('.duration-preset-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      chartRenderer.setTimeframe(Number(btn.getAttribute('data-tf')));
+      container.querySelector('#lbl-duration-val').textContent = `${val} Ticks`;
+      stateManager.update(s => { s.trading.durationValue = val; });
+      recalcPayoutDisplay(container);
     });
-  });
-
-  container.querySelectorAll('.chart-btn[data-ind]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.classList.toggle('active');
-      chartRenderer.toggleIndicator(btn.getAttribute('data-ind'));
-    });
-  });
-
-  // Contract Type Switching
-  container.querySelectorAll('.contract-tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      container.querySelectorAll('.contract-tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const type = btn.getAttribute('data-type');
-      stateManager.setContractType(type);
-      updateContractUI(type);
-      updatePayoutCalculations();
-    });
-  });
-
-  // Digit selection for Over/Under and Matches/Differs
-  container.querySelectorAll('.digit-pick-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      container.querySelectorAll('.digit-pick-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const d = Number(btn.getAttribute('data-digit'));
-      stateManager.update(s => { s.trading.selectedDigit = d; });
-      container.querySelector('#selected-target-digit-lbl').textContent = d;
-      updatePayoutCalculations();
-    });
-  });
-
-  // Duration Type (Ticks vs Seconds)
-  container.querySelectorAll('.duration-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      container.querySelectorAll('.duration-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const durType = tab.getAttribute('data-durtype');
-      const defaultVal = durType === 'ticks' ? 5 : 30;
-      stateManager.setDuration(durType, defaultVal);
-      renderDurationPresets(durType);
-    });
-  });
-
-  function renderDurationPresets(durType) {
-    const presetsEl = container.querySelector('#duration-presets-container');
-    const values = durType === 'ticks' ? [1, 2, 3, 5, 10] : [15, 30, 60, 120, 300];
-    const unit = durType === 'ticks' ? 'T' : 's';
-    const state = stateManager.getState();
-
-    presetsEl.innerHTML = values.map(v => `
-      <button class="duration-preset-btn ${state.trading.durationValue === v ? 'active' : ''}" data-val="${v}">
-        ${v}${unit}
-      </button>
-    `).join('');
-
-    presetsEl.querySelectorAll('.duration-preset-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        presetsEl.querySelectorAll('.duration-preset-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const val = Number(btn.getAttribute('data-val'));
-        stateManager.setDuration(durType, val);
-        container.querySelector('#duration-display-lbl').textContent = `${val} ${durType === 'ticks' ? 'Ticks' : 'Seconds'}`;
-      });
-    });
-  }
-
-  // Stake Input & Quick Chips
-  const stakeInput = container.querySelector('#stake-input');
-  stakeInput.addEventListener('input', (e) => {
-    stateManager.setStake(e.target.value);
-    updatePayoutCalculations();
   });
 
   container.querySelectorAll('.stake-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      const add = Number(chip.getAttribute('data-add'));
-      const cur = Number(stakeInput.value) || 0;
-      stakeInput.value = cur + add;
-      stateManager.setStake(stakeInput.value);
-      updatePayoutCalculations();
+      const add = Number(chip.getAttribute('data-addstake'));
+      const input = container.querySelector('#input-manual-stake');
+      if (input) {
+        input.value = (Number(input.value) || 0) + add;
+        stateManager.update(s => { s.trading.stake = Number(input.value); });
+        recalcPayoutDisplay(container);
+      }
     });
   });
 
-  // Action Buttons Trade Placement
-  const btnCall = container.querySelector('#btn-trade-call');
-  const btnPut = container.querySelector('#btn-trade-put');
+  const stakeInput = container.querySelector('#input-manual-stake');
+  if (stakeInput) {
+    stakeInput.addEventListener('input', () => {
+      stateManager.update(s => { s.trading.stake = Math.max(1, Number(stakeInput.value) || 1); });
+      recalcPayoutDisplay(container);
+    });
+  }
 
-  btnCall.addEventListener('click', () => {
-    const type = stateManager.getState().trading.contractType;
-    let pred = 'higher';
-    if (type === 'even_odd') pred = 'even';
-    else if (type === 'over_under') pred = 'over';
-    else if (type === 'matches_differs') pred = 'matches';
-    tradeEngine.placeTrade(pred);
-  });
-
-  btnPut.addEventListener('click', () => {
-    const type = stateManager.getState().trading.contractType;
-    let pred = 'lower';
-    if (type === 'even_odd') pred = 'odd';
-    else if (type === 'over_under') pred = 'under';
-    else if (type === 'matches_differs') pred = 'differs';
-    tradeEngine.placeTrade(pred);
-  });
-
-  // Activity Tabs Switching
-  container.querySelectorAll('.activity-tab-btn').forEach(btn => {
+  // 11. Target Digit Buttons
+  container.querySelectorAll('.digit-pick-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      container.querySelectorAll('.activity-tab-btn').forEach(b => b.classList.remove('active'));
+      const d = Number(btn.getAttribute('data-targetdigit'));
+      container.querySelectorAll('.digit-pick-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      activeActivityTab = btn.getAttribute('data-acttab');
-      renderActivityContent();
+      const lbl = container.querySelector('#lbl-selected-digit');
+      if (lbl) lbl.textContent = d;
+      stateManager.update(s => { s.trading.selectedDigit = d; });
+      recalcPayoutDisplay(container);
     });
   });
 
-  function updateContractUI(type) {
-    const digitPickContainer = container.querySelector('#digit-pick-container');
-    const callBtnText = container.querySelector('#call-btn-text');
-    const putBtnText = container.querySelector('#put-btn-text');
+  // 12. Execution Action Buttons (Even/Odd, Call/Put, etc.)
+  const btnCall = container.querySelector('#btn-action-call');
+  const btnPut = container.querySelector('#btn-action-put');
 
-    if (type === 'rise_fall') {
-      digitPickContainer.classList.add('hidden');
-      callBtnText.textContent = 'HIGHER';
-      putBtnText.textContent = 'LOWER';
-    } else if (type === 'even_odd') {
-      digitPickContainer.classList.add('hidden');
-      callBtnText.textContent = 'EVEN';
-      putBtnText.textContent = 'ODD';
-    } else if (type === 'over_under') {
-      digitPickContainer.classList.remove('hidden');
-      callBtnText.textContent = 'OVER';
-      putBtnText.textContent = 'UNDER';
-    } else if (type === 'matches_differs') {
-      digitPickContainer.classList.remove('hidden');
-      callBtnText.textContent = 'MATCHES';
-      putBtnText.textContent = 'DIFFERS';
+  if (btnCall && btnPut) {
+    btnCall.addEventListener('click', () => handleTradeClick(container, 'CALL'));
+    btnPut.addEventListener('click', () => handleTradeClick(container, 'PUT'));
+  }
+
+  // Initial State Rendering
+  updateContractUI(container, state.trading.contractType);
+  renderSidebarPositions(container, 'open');
+  recalcPayoutDisplay(container);
+}
+
+/* --------------------------------------------------------------------------
+   Helper: Trade Execution Handler
+   -------------------------------------------------------------------------- */
+function handleTradeClick(container, actionDirection) {
+  const state = stateManager.getState();
+  const ctype = state.trading.contractType;
+  let direction = actionDirection;
+
+  if (ctype === 'even_odd') {
+    direction = actionDirection === 'CALL' ? 'EVEN' : 'ODD';
+  } else if (ctype === 'over_under') {
+    direction = actionDirection === 'CALL' ? 'OVER' : 'UNDER';
+  } else if (ctype === 'matches_differs') {
+    direction = actionDirection === 'CALL' ? 'MATCHES' : 'DIFFERS';
+  }
+
+  if (state.trading.tradeMode === 'auto') {
+    // Read auto parameters and trigger Auto Trading Bot
+    const targetProfit = Number(container.querySelector('#input-target-profit')?.value) || 200;
+    const targetLoss = Number(container.querySelector('#input-target-loss')?.value) || 999;
+    const multiplier = Number(container.querySelector('#input-loss-multiple')?.value) || 2;
+
+    stateManager.update(s => {
+      s.botConfig.targetProfit = targetProfit;
+      s.botConfig.stopLoss = targetLoss;
+      s.botConfig.multiplier = multiplier;
+      s.botConfig.preferredDirection = direction;
+    });
+
+    if (autoTradingBot.isRunning) {
+      autoTradingBot.stop();
+      window.dispatchEvent(new CustomEvent('betabinary_toast', {
+        detail: { type: 'warning', message: 'Auto-Trading Bot Stopped.' }
+      }));
+    } else {
+      autoTradingBot.start();
+      window.dispatchEvent(new CustomEvent('betabinary_toast', {
+        detail: { type: 'success', message: `Auto Bot Started on ${direction}! Target Profit: $${targetProfit}` }
+      }));
+    }
+  } else {
+    // Manual Trade Execution
+    const trade = tradeEngine.placeTrade({
+      direction,
+      stake: state.trading.stake || 10,
+      contractType: ctype,
+      durationTicks: state.trading.durationValue || 5,
+      targetDigit: state.trading.selectedDigit || 0
+    });
+
+    if (trade) {
+      renderSidebarPositions(container, 'open');
+      updateAccountUI(container);
     }
   }
+}
 
-  function updatePayoutCalculations() {
-    const state = stateManager.getState();
-    const market = MARKETS_DATA.find(m => m.id === state.trading.selectedAssetId) || MARKETS_DATA[0];
-    const calcCall = calculatePayout(state.trading.contractType, 'higher', state.trading.selectedDigit, state.trading.stake, market.payout);
+/* --------------------------------------------------------------------------
+   Helper: Render Bottom 10 Digit Chips (0-9)
+   -------------------------------------------------------------------------- */
+function renderDigitAnalyzer(container, stats, lastDigit) {
+  const bar = container.querySelector('#digit-analyzer-bar');
+  if (!bar || !stats) return;
 
-    container.querySelector('#calc-return-rate').textContent = `+${calcCall.returnPct}%`;
-    container.querySelector('#calc-net-profit').textContent = `+$${calcCall.profit.toFixed(2)}`;
-    container.querySelector('#calc-total-payout').textContent = `$${calcCall.payout.toFixed(2)}`;
-
-    container.querySelector('#call-btn-payout').textContent = `Payout: $${calcCall.payout.toFixed(2)} (+${calcCall.returnPct}%)`;
-    
-    const calcPut = calculatePayout(state.trading.contractType, 'lower', state.trading.selectedDigit, state.trading.stake, market.payout);
-    container.querySelector('#put-btn-payout').textContent = `Payout: $${calcPut.payout.toFixed(2)} (+${calcPut.returnPct}%)`;
+  // Find max and min percentages
+  let maxPct = -1;
+  let minPct = 999;
+  for (let i = 0; i <= 9; i++) {
+    const pct = stats.percentages[i] || 0;
+    if (pct > maxPct) maxPct = pct;
+    if (pct < minPct) minPct = pct;
   }
 
-  function updateHeaderAssetDisplay() {
-    const state = stateManager.getState();
-    const market = MARKETS_DATA.find(m => m.id === state.trading.selectedAssetId) || MARKETS_DATA[0];
-    container.querySelector('#hdr-asset-name').textContent = market.name;
-    container.querySelector('#hdr-asset-symbol').textContent = market.symbol;
-    container.querySelector('#hdr-asset-payout').textContent = `Payout: up to ${market.payout}%`;
-    updatePayoutCalculations();
-  }
+  let html = '';
+  for (let d = 0; d <= 9; d++) {
+    const pct = stats.percentages[d] || 0;
+    const isHot = pct === maxPct;
+    const isCold = pct === minPct;
+    const isCurrent = d === lastDigit;
 
-  function renderDigitAnalyzer(assetId) {
-    const grid = container.querySelector('#digit-analyzer-grid');
-    if (!grid) return;
-    const stats = priceEngine.getDigitStats(assetId, 100);
-
-    grid.innerHTML = stats.map(s => `
-      <div class="digit-bar-item">
-        <div class="digit-bar-fill-track">
-          <div class="digit-bar-fill ${s.isHot ? 'hot' : (s.isCold ? 'cold' : '')}" style="height: ${Math.max(10, s.percentage * 2)}%;"></div>
-        </div>
-        <span class="digit-bar-num">${s.digit}</span>
-        <span class="digit-bar-pct">${s.percentage}%</span>
+    html += `
+      <div class="trade-digit-chip ${isHot ? 'hot' : ''} ${isCold ? 'cold' : ''}" data-digit="${d}">
+        <div class="trade-digit-chip-num">${d}</div>
+        <div class="trade-digit-chip-pct">${pct.toFixed(1)}%</div>
+        ${isCurrent ? '<div class="trade-digit-pointer">▼</div>' : ''}
       </div>
-    `).join('');
+    `;
   }
+  bar.innerHTML = html;
+}
 
-  function renderActivityContent() {
-    const target = container.querySelector('#activity-content-container');
-    if (!target) return;
-    const state = stateManager.getState();
+/* --------------------------------------------------------------------------
+   Helper: Render Left Sidebar Positions
+   -------------------------------------------------------------------------- */
+function renderSidebarPositions(container, tab = 'open') {
+  const wrapper = container.querySelector('#sidebar-positions-container');
+  const countEl = container.querySelector('#count-open-pos');
+  const closedCountEl = container.querySelector('#count-closed-pos');
+  const footerCountEl = container.querySelector('#footer-open-count');
+  if (!wrapper) return;
 
-    if (activeActivityTab === 'positions') {
-      const positions = state.openPositions;
-      if (positions.length === 0) {
-        target.innerHTML = `<div class="text-center text-muted" style="padding:2rem 0;">No active open contracts. Select parameters and execute a trade above.</div>`;
-        return;
-      }
+  const state = stateManager.getState();
+  if (countEl) countEl.textContent = state.openPositions.length;
+  if (closedCountEl) closedCountEl.textContent = state.tradeHistory.length;
+  if (footerCountEl) footerCountEl.textContent = state.openPositions.length;
 
-      target.innerHTML = `
-        <div class="positions-grid">
-          ${positions.map(p => {
-            const isWinning = p.prediction === 'higher' ? (p.currentPrice > p.entryPrice) : (p.currentPrice < p.entryPrice);
-            return `
-              <div class="position-card ${isWinning ? 'winning' : 'losing'}">
-                <div class="flex items-center justify-between text-xs">
-                  <span class="font-bold text-primary">${p.assetName}</span>
-                  <span class="badge ${isWinning ? 'badge-success' : 'badge-danger'}">${p.prediction.toUpperCase()}</span>
-                </div>
-                <div class="flex items-center justify-between font-mono text-xs">
-                  <span class="text-muted">Entry: ${p.entryPrice.toFixed(2)}</span>
-                  <span class="font-bold ${isWinning ? 'text-success' : 'text-danger'}">Current: ${p.currentPrice.toFixed(2)}</span>
-                </div>
-                <div class="flex items-center justify-between text-xs">
-                  <span class="text-muted">Stake: $${p.stake}</span>
-                  <span class="font-bold font-mono text-success">Payout: $${p.potentialPayout.toFixed(2)}</span>
-                </div>
-                <div class="position-progress-bar" style="width: ${p.durationType === 'ticks' ? ((p.durationValue - p.ticksRemaining) / p.durationValue) * 100 : 50}%;"></div>
-              </div>
-            `;
-          }).join('')}
-        </div>
+  if (tab === 'open') {
+    if (state.openPositions.length === 0) {
+      wrapper.innerHTML = `
+        <div class="trade-empty-circle">◎</div>
+        <div class="trade-empty-title">No open positions</div>
+        <div class="trade-empty-desc">Your active trades will appear here</div>
       `;
-    } else if (activeActivityTab === 'history') {
-      const history = state.tradeHistory;
-      if (history.length === 0) {
-        target.innerHTML = `<div class="text-center text-muted" style="padding:2rem 0;">No settled trades recorded yet.</div>`;
-        return;
-      }
-
-      target.innerHTML = `
-        <table class="trade-history-table">
-          <thead>
-            <tr>
-              <th>Contract ID</th>
-              <th>Asset</th>
-              <th>Type</th>
-              <th>Entry Price</th>
-              <th>Exit Price</th>
-              <th>Stake</th>
-              <th>Profit / Loss</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${history.map(h => `
-              <tr>
-                <td class="text-muted">${h.id}</td>
-                <td class="font-semibold text-primary">${h.assetName}</td>
-                <td>${h.prediction.toUpperCase()}</td>
-                <td>${h.entryPrice.toFixed(2)}</td>
-                <td>${h.exitPrice.toFixed(2)}</td>
-                <td>$${h.stake.toFixed(2)}</td>
-                <td class="font-bold ${h.profit >= 0 ? 'text-success' : 'text-danger'}">${h.profit >= 0 ? '+' : ''}$${h.profit.toFixed(2)}</td>
-                <td>
-                  <span class="badge ${h.status === 'won' ? 'badge-success' : 'badge-danger'}">${h.status.toUpperCase()}</span>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-    } else if (activeActivityTab === 'bot') {
-      const bot = state.bot;
-      target.innerHTML = `
-        <div class="bot-panel-wrapper">
-          <div class="bot-stat-card">
-            <div class="bot-stat-label">Bot Strategy</div>
-            <div class="flex gap-2" style="margin-top:0.25rem;">
-              <select class="input-field text-xs" id="bot-strategy-select" ${bot.isRunning ? 'disabled' : ''}>
-                <option value="martingale" ${bot.strategy === 'martingale' ? 'selected' : ''}>Martingale (2x on loss)</option>
-                <option value="dalembert" ${bot.strategy === 'dalembert' ? 'selected' : ''}>D'Alembert (+Step on loss)</option>
-                <option value="scalper" ${bot.strategy === 'scalper' ? 'selected' : ''}>AI Momentum Scalper</option>
-              </select>
-            </div>
-            <div class="flex gap-2" style="margin-top:0.5rem;">
-              <button class="btn ${bot.isRunning ? 'btn-danger' : 'btn-success'} btn-sm w-full" id="btn-toggle-bot">
-                ${bot.isRunning ? '⏹ Stop Bot' : '▶ Launch Auto Bot'}
-              </button>
-            </div>
+    } else {
+      wrapper.innerHTML = state.openPositions.map(pos => `
+        <div class="trade-pos-item-card">
+          <div class="trade-pos-item-header">
+            <span class="font-bold text-xs" style="color:var(--trade-teal);">${pos.assetName || 'Volatility 10'}</span>
+            <span class="badge badge-brand" style="font-size:0.65rem;">${pos.direction}</span>
           </div>
-
-          <div class="bot-stat-card">
-            <div class="bot-stat-label">Session Target & Guard</div>
-            <div class="grid" style="grid-template-columns:1fr 1fr; gap:0.5rem; margin-top:0.25rem;">
-              <div>
-                <span class="text-xs text-muted">Target Profit</span>
-                <input type="number" class="input-field text-xs mono" id="bot-target-profit" value="${bot.targetProfit}" ${bot.isRunning ? 'disabled' : ''} />
-              </div>
-              <div>
-                <span class="text-xs text-muted">Stop Loss</span>
-                <input type="number" class="input-field text-xs mono" id="bot-stop-loss" value="${bot.stopLoss}" ${bot.isRunning ? 'disabled' : ''} />
-              </div>
-            </div>
-          </div>
-
-          <div class="grid" style="grid-template-columns:repeat(4, 1fr); gap:0.5rem;">
-            <div class="bot-stat-card text-center">
-              <div class="bot-stat-label">Runs</div>
-              <div class="bot-stat-value text-primary">${bot.totalRuns}</div>
-            </div>
-            <div class="bot-stat-card text-center">
-              <div class="bot-stat-label">Wins / Loss</div>
-              <div class="bot-stat-value text-brand">${bot.wins} / ${bot.losses}</div>
-            </div>
-            <div class="bot-stat-card text-center">
-              <div class="bot-stat-label">Win Rate</div>
-              <div class="bot-stat-value text-warning">${bot.totalRuns > 0 ? Math.round((bot.wins / bot.totalRuns) * 100) : 0}%</div>
-            </div>
-            <div class="bot-stat-card text-center">
-              <div class="bot-stat-label">Net Profit</div>
-              <div class="bot-stat-value ${bot.netProfit >= 0 ? 'text-success' : 'text-danger'}">${bot.netProfit >= 0 ? '+' : ''}$${bot.netProfit.toFixed(2)}</div>
-            </div>
+          <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--trade-text-muted);">
+            <span>Stake: <b style="color:#fff;">$${pos.stake.toFixed(2)}</b></span>
+            <span>Ticks: <b style="color:var(--trade-teal);">${pos.ticksLeft || 1}</b></span>
           </div>
         </div>
-      `;
-
-      const toggleBotBtn = target.querySelector('#btn-toggle-bot');
-      if (toggleBotBtn) {
-        toggleBotBtn.addEventListener('click', () => {
-          if (bot.isRunning) {
-            autoTradingBot.stopBot();
-          } else {
-            const strat = target.querySelector('#bot-strategy-select').value;
-            const targetProfit = Number(target.querySelector('#bot-target-profit').value) || 50;
-            const stopLoss = Number(target.querySelector('#bot-stop-loss').value) || 100;
-            stateManager.update(s => {
-              s.bot.strategy = strat;
-              s.bot.targetProfit = targetProfit;
-              s.bot.stopLoss = stopLoss;
-            });
-            autoTradingBot.startBot();
-          }
-          renderActivityContent();
-        });
-      }
-    } else if (activeActivityTab === 'transactions') {
-      const txns = state.transactions;
-      target.innerHTML = `
-        <table class="trade-history-table">
-          <thead>
-            <tr>
-              <th>TXID</th>
-              <th>Type</th>
-              <th>Method</th>
-              <th>Amount</th>
-              <th>Date</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${txns.map(t => `
-              <tr>
-                <td class="text-muted">${t.id}</td>
-                <td class="font-bold uppercase ${t.type === 'deposit' ? 'text-success' : 'text-warning'}">${t.type}</td>
-                <td>${t.method}</td>
-                <td class="font-mono font-bold">$${t.amount.toFixed(2)}</td>
-                <td class="text-muted">${new Date(t.date).toLocaleDateString()} ${new Date(t.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                <td><span class="badge ${t.status === 'completed' ? 'badge-success' : 'badge-warning'}">${t.status.toUpperCase()}</span></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
+      `).join('');
     }
+  } else if (tab === 'closed') {
+    if (state.tradeHistory.length === 0) {
+      wrapper.innerHTML = `
+        <div class="trade-empty-circle">🕒</div>
+        <div class="trade-empty-title">No trade history</div>
+        <div class="trade-empty-desc">Closed trades will be logged here</div>
+      `;
+    } else {
+      wrapper.innerHTML = state.tradeHistory.slice(0, 15).map(t => {
+        const isWin = t.status === 'WON';
+        return `
+          <div class="trade-pos-item-card" style="border-left:3px solid ${isWin ? 'var(--trade-teal)' : 'var(--trade-red)'};">
+            <div class="trade-pos-item-header">
+              <span class="font-bold text-xs">${t.direction}</span>
+              <span class="font-bold text-xs" style="color:${isWin ? 'var(--trade-teal)' : 'var(--trade-red)'};">
+                ${isWin ? `+$${t.profit.toFixed(2)}` : `-$${t.stake.toFixed(2)}`}
+              </span>
+            </div>
+            <div style="font-size:0.7rem; color:var(--trade-text-muted);">
+              ${new Date(t.date).toLocaleTimeString()} • ${t.contractType}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  } else {
+    // Transactions
+    wrapper.innerHTML = state.transactions.slice(0, 10).map(tx => `
+      <div class="trade-pos-item-card">
+        <div class="trade-pos-item-header">
+          <span class="font-bold text-xs">${tx.method}</span>
+          <span class="font-bold text-xs text-brand">$${tx.amount.toFixed(2)}</span>
+        </div>
+        <div style="font-size:0.7rem; color:var(--trade-text-muted);">${tx.type.toUpperCase()} • ${new Date(tx.date).toLocaleDateString()}</div>
+      </div>
+    `).join('') || '<div class="trade-empty-desc">No transactions yet</div>';
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Helper: Update UI for Selected Contract
+   -------------------------------------------------------------------------- */
+function updateContractUI(container, ctype) {
+  const iconBox = container.querySelector('#contract-icon-box');
+  const nameLabel = container.querySelector('#contract-name-label');
+  const btnCallLabel = container.querySelector('#lbl-btn-call');
+  const btnPutLabel = container.querySelector('#lbl-btn-put');
+  const pctCall = container.querySelector('#pct-btn-call');
+  const pctPut = container.querySelector('#pct-btn-put');
+  const digitPicker = container.querySelector('#manual-digit-picker');
+
+  if (ctype === 'even_odd') {
+    if (iconBox) iconBox.innerHTML = '▦ △';
+    if (nameLabel) nameLabel.textContent = 'Even/Odd';
+    if (btnCallLabel) btnCallLabel.innerHTML = '<span>▦</span> Even';
+    if (btnPutLabel) btnPutLabel.innerHTML = '<span>△</span> Odd';
+    if (pctCall) pctCall.textContent = '95.22%';
+    if (pctPut) pctPut.textContent = '95.22%';
+    if (digitPicker) digitPicker.classList.add('hidden');
+  } else if (ctype === 'rise_fall') {
+    if (iconBox) iconBox.innerHTML = '▲ ▼';
+    if (nameLabel) nameLabel.textContent = 'Rise/Fall';
+    if (btnCallLabel) btnCallLabel.innerHTML = '<span>▲</span> Higher';
+    if (btnPutLabel) btnPutLabel.innerHTML = '<span>▼</span> Lower';
+    if (pctCall) pctCall.textContent = '95.00%';
+    if (pctPut) pctPut.textContent = '95.00%';
+    if (digitPicker) digitPicker.classList.add('hidden');
+  } else if (ctype === 'over_under') {
+    if (iconBox) iconBox.innerHTML = '📈 📉';
+    if (nameLabel) nameLabel.textContent = 'Over/Under';
+    if (btnCallLabel) btnCallLabel.innerHTML = '<span>▲</span> Over';
+    if (btnPutLabel) btnPutLabel.innerHTML = '<span>▼</span> Under';
+    if (pctCall) pctCall.textContent = '120.0%';
+    if (pctPut) pctPut.textContent = '120.0%';
+    if (digitPicker) digitPicker.classList.remove('hidden');
+  } else if (ctype === 'matches_differs') {
+    if (iconBox) iconBox.innerHTML = '= ≠';
+    if (nameLabel) nameLabel.textContent = 'Matches/Differs';
+    if (btnCallLabel) btnCallLabel.innerHTML = '<span>=</span> Matches';
+    if (btnPutLabel) btnPutLabel.innerHTML = '<span>≠</span> Differs';
+    if (pctCall) pctCall.textContent = '950.0%';
+    if (pctPut) pctPut.textContent = '10.50%';
+    if (digitPicker) digitPicker.classList.remove('hidden');
   }
 
-  // Reactive updates on State changes
-  stateManager.subscribe((st) => {
-    const openCountBadge = container.querySelector('#open-positions-count');
-    if (openCountBadge) openCountBadge.textContent = st.openPositions.length;
+  recalcPayoutDisplay(container);
+}
 
-    const hdrTag = container.querySelector('#hdr-account-tag');
-    if (hdrTag) {
-      hdrTag.className = `account-type-tag ${st.user.accountType === 'demo' ? 'account-type-demo' : 'account-type-real'}`;
-      hdrTag.textContent = st.user.accountType.toUpperCase();
-    }
+/* --------------------------------------------------------------------------
+   Helper: Recalculate Payout Display
+   -------------------------------------------------------------------------- */
+function recalcPayoutDisplay(container) {
+  const state = stateManager.getState();
+  const stake = state.trading.stake || 10;
+  const ctype = state.trading.contractType;
+  const payout = calculatePayout(ctype, stake, state.trading.selectedDigit);
 
-    const hdrBal = container.querySelector('#hdr-account-balance');
-    if (hdrBal) {
-      hdrBal.textContent = `$${(st.user.accountType === 'demo' ? st.user.demoBalance : st.user.realBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
+  const payoutEl = container.querySelector('#lbl-payout-amount');
+  if (payoutEl) {
+    payoutEl.textContent = `${payout.totalPayout.toFixed(2)} USD ⓘ`;
+  }
+}
 
-    const menuDemoBal = container.querySelector('#menu-demo-balance');
-    if (menuDemoBal) menuDemoBal.textContent = `$${st.user.demoBalance.toFixed(2)}`;
+/* --------------------------------------------------------------------------
+   Helper: Update Header Account Balances
+   -------------------------------------------------------------------------- */
+function updateAccountUI(container) {
+  const user = stateManager.getState().user;
+  const isReal = user.accountType === 'real';
+  const balance = isReal ? user.realBalance : user.demoBalance;
 
-    const menuRealBal = container.querySelector('#menu-real-balance');
-    if (menuRealBal) menuRealBal.textContent = `$${st.user.realBalance.toFixed(2)}`;
+  const badge = container.querySelector('#hdr-acc-badge');
+  const balText = container.querySelector('#hdr-balance-text');
+  const menuDemo = container.querySelector('#menu-demo-bal');
+  const menuReal = container.querySelector('#menu-real-bal');
 
-    renderActivityContent();
+  if (badge) {
+    badge.textContent = isReal ? 'R' : 'D';
+    badge.className = `trade-account-type-badge ${isReal ? 'real' : 'demo'}`;
+  }
+  if (balText) {
+    balText.textContent = `$${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  if (menuDemo) menuDemo.textContent = `$${user.demoBalance.toFixed(2)}`;
+  if (menuReal) menuReal.textContent = `$${user.realBalance.toFixed(2)}`;
+}
+
+/* --------------------------------------------------------------------------
+   Helper: Populate Asset Picker List
+   -------------------------------------------------------------------------- */
+function renderAssetList(container, category = 'all', query = '') {
+  let list = MARKETS_DATA;
+  if (category !== 'all') {
+    list = list.filter(m => m.category === category);
+  }
+  if (query) {
+    list = list.filter(m => m.name.toLowerCase().includes(query) || m.symbol.toLowerCase().includes(query));
+  }
+
+  container.innerHTML = list.map(m => `
+    <div class="asset-list-item" data-assetid="${m.id}" style="padding:0.6rem 0.75rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; border-radius:6px;">
+      <div>
+        <div style="font-weight:700; font-size:0.85rem; color:#fff;">${m.name}</div>
+        <div style="font-size:0.7rem; color:var(--trade-text-muted);">${m.category.toUpperCase()} • ${m.symbol}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="mono font-bold text-xs" style="color:var(--trade-teal);">95% Payout</div>
+      </div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.asset-list-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const assetId = item.getAttribute('data-assetid');
+      stateManager.update(s => { s.trading.selectedAssetId = assetId; });
+      const assetModal = document.querySelector('#asset-picker-modal');
+      if (assetModal) assetModal.classList.add('hidden');
+      const nameEl = document.querySelector('#asset-name-label');
+      const selected = MARKETS_DATA.find(m => m.id === assetId);
+      if (nameEl && selected) nameEl.textContent = selected.name;
+    });
   });
-
-  // Render on price ticks
-  priceEngine.subscribe((updates) => {
-    const currentAssetId = stateManager.getState().trading.selectedAssetId;
-    const latest = priceEngine.getLatestPrice(currentAssetId);
-
-    // Update overlay prices
-    const overlayMain = container.querySelector('#overlay-price-main');
-    const overlayLast = container.querySelector('#overlay-last-digit');
-    const hdrLive = container.querySelector('#hdr-live-price');
-
-    if (overlayMain && latest) {
-      const precision = (MARKETS_DATA.find(m => m.id === currentAssetId) || {}).precision || 2;
-      const str = latest.price.toFixed(precision);
-      overlayMain.textContent = str.slice(0, -1);
-      overlayLast.textContent = str.slice(-1);
-      hdrLive.textContent = `$${str}`;
-    }
-
-    // Update individual asset item prices in dropdown
-    for (const u of updates) {
-      const itemEl = container.querySelector(`#asset-item-price-${u.assetId}`);
-      if (itemEl) {
-        itemEl.textContent = `$${u.price.toFixed(2)}`;
-      }
-    }
-
-    // Re-render chart and digit bars
-    chartRenderer.render(currentAssetId, stateManager.getState().openPositions);
-    renderDigitAnalyzer(currentAssetId);
-  });
-
-  // Initial draw
-  updatePayoutCalculations();
-  renderActivityContent();
-  renderDigitAnalyzer(state.trading.selectedAssetId);
 }
