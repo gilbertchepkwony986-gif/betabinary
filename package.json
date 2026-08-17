@@ -1,0 +1,26 @@
+{
+  "name": "betabinary",
+  "version": "1.0.0",
+  "description": "BetaBinary - Complete High-Frequency Binary Options Trading Terminal & Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "echo 'Build finished'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "keywords": [
+    "binary-options",
+    "trading",
+    "fintech",
+    "forex",
+    "synthetic-indices",
+    "m-pesa"
+  ],
+  "author": "BetaBinary",
+  "license": "MIT"
+}
