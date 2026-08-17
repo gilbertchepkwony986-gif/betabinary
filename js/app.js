@@ -42,11 +42,11 @@ class BetaBinaryApp {
     } else if (hash.startsWith('#/settings')) {
       const sub = hash.replace('#/settings/', '').replace('#/settings', '') || 'profile';
       this.appRoot.appendChild(renderSettingsView(sub));
-    } else if (hash === '#/login') {
+    } else if (hash.startsWith('#/login')) {
       this.appRoot.appendChild(renderAuthView('login'));
-    } else if (hash === '#/register') {
+    } else if (hash.startsWith('#/register')) {
       this.appRoot.appendChild(renderAuthView('register'));
-    } else if (hash === '#/leaderboard') {
+    } else if (hash.startsWith('#/leaderboard')) {
       this.appRoot.appendChild(renderLeaderboardView());
     } else if (hash === '#/affiliate') {
       this.appRoot.appendChild(renderAffiliateView());
