@@ -47,7 +47,7 @@ export function renderAuthView(mode = 'login') {
         ${!isLogin ? `
           <div class="form-group" style="margin-bottom:0.25rem;">
             <label class="form-label">Referral Code (Optional)</label>
-            <input type="text" class="input-field mono" placeholder="e.g. BETA9920" />
+            <input type="text" id="referral-input" class="input-field mono" placeholder="e.g. BETA9920" />
           </div>
         ` : ''}
 
@@ -82,6 +82,16 @@ export function renderAuthView(mode = 'login') {
   `;
 
   setTimeout(() => {
+    // Check if referral code is in URL (e.g. ?ref=... or #/register?ref=...)
+    const urlParams = new URLSearchParams(window.location.search);
+    const hashParams = window.location.hash.includes('?') ? new URLSearchParams(window.location.hash.split('?')[1]) : null;
+    const refCode = urlParams.get('ref') || (hashParams ? hashParams.get('ref') : '');
+    const refInput = container.querySelector('#referral-input');
+    if (refInput && refCode) {
+      refInput.value = refCode;
+      refInput.classList.add('border-brand');
+    }
+
     const form = container.querySelector('#auth-form');
     if (form) {
       form.addEventListener('submit', (e) => {
