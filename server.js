@@ -63,7 +63,8 @@ function paynectaRequest(method, path, body) {
 
 // ---------------------------------------------------------------------------
 // POST /api/paynecta/deposit/mpesa
-// Creates a Paynecta Checkout Session then initiates STK Push to phone
+// Creates a Paynecta Checkout Session and returns the hosted checkout URL.
+// Paynecta's flow: create session → redirect customer → they enter phone & PIN.
 // Body: { phone, amountUsd }
 // ---------------------------------------------------------------------------
 app.post('/api/paynecta/deposit/mpesa', async (req, res) => {
@@ -76,61 +77,39 @@ app.post('/api/paynecta/deposit/mpesa', async (req, res) => {
     if (!amountUsd || Number(amountUsd) < 5) {
       return res.status(400).json({ error: 'Minimum deposit is $5.' });
     }
+    if (!PAYNECTA_LINK_SLUG) {
+      return res.status(500).json({ error: 'Payment gateway not configured. Contact support.' });
+    }
 
     const kesAmount = Math.round(Number(amountUsd) * USD_TO_KES);
-    const reference = `BB-${Date.now()}`;
+    const successUrl = `${req.protocol}://${req.get('host')}/#/deposit/success`;
 
-    // Step 1: Create a Checkout Session
+    // Paynecta required fields: code (payment link slug) + success_url
     const sessionRes = await paynectaRequest('POST', '/api/v1/checkout/sessions', {
-      amount: kesAmount,
-      currency: 'KES',
-      description: `BetaBinary Deposit — ${reference}`,
-      reference,
-      redirect_url: `${req.protocol}://${req.get('host')}/#/deposit/success`,
-      cancel_url: `${req.protocol}://${req.get('host')}/#/deposit/cancel`,
-      metadata: { source: 'betabinary', usd_amount: Number(amountUsd) }
+      code: PAYNECTA_LINK_SLUG,
+      success_url: successUrl
     });
 
     if (sessionRes.status < 200 || sessionRes.status >= 300) {
       console.error('[Paynecta] Session create error:', sessionRes);
-      return res.status(sessionRes.status).json({ error: sessionRes.body?.message || 'Could not create checkout session.' });
+      return res.status(sessionRes.status).json({
+        error: sessionRes.body?.message || 'Could not create checkout session.'
+      });
     }
 
     const sessionId  = sessionRes.body?.data?.id  || sessionRes.body?.id;
-    const sessionUrl = sessionRes.body?.data?.url || sessionRes.body?.checkout_url;
+    const sessionUrl = sessionRes.body?.data?.url || sessionRes.body?.checkout_url
+                    || `https://paynecta.co.ke/c/${sessionId}`;
 
-    // Step 2: Initiate STK Push via payment link route
-    const normalizedPhone = phone.replace(/^0/, '254').replace(/\D/g, '');
-    const stkRes = await paynectaRequest('POST', `/api/v1/checkout/sessions/${sessionId}/pay`, {
-      phone_number: normalizedPhone,
-      payment_method: 'mpesa_stk'
+    return res.json({
+      success: true,
+      sessionId,
+      sessionUrl,
+      kesAmount,
+      amountUsd: Number(amountUsd),
+      // Paynecta handles the STK Push on their hosted page after customer enters phone
+      message: 'Paynecta checkout ready. Complete payment on the secure page.'
     });
-
-    if (stkRes.status >= 200 && stkRes.status < 300) {
-      return res.json({
-        success: true,
-        reference,
-        sessionId,
-        sessionUrl,
-        kesAmount,
-        amountUsd: Number(amountUsd),
-        phone: normalizedPhone,
-        message: stkRes.body?.message || 'STK Push sent. Check your phone for the M-Pesa prompt.'
-      });
-    } else {
-      // Fall back: return session URL for manual checkout
-      console.warn('[Paynecta] STK push failed, returning checkout URL:', stkRes.body);
-      return res.json({
-        success: true,
-        reference,
-        sessionId,
-        sessionUrl,
-        kesAmount,
-        amountUsd: Number(amountUsd),
-        fallback: true,
-        message: 'STK Push unavailable. Use the checkout link to complete payment.'
-      });
-    }
 
   } catch (err) {
     console.error('[Paynecta] M-Pesa error:', err.message);
@@ -140,28 +119,25 @@ app.post('/api/paynecta/deposit/mpesa', async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // POST /api/paynecta/deposit/card
-// Creates a Paynecta checkout session for card / any other payment method
-// Body: { amountUsd, email, name }
+// Creates a Paynecta checkout session — same flow as M-Pesa (hosted page)
+// Body: { amountUsd }
 // ---------------------------------------------------------------------------
 app.post('/api/paynecta/deposit/card', async (req, res) => {
   try {
-    const { amountUsd, email, name } = req.body;
+    const { amountUsd } = req.body;
     if (!amountUsd || Number(amountUsd) < 10) {
       return res.status(400).json({ error: 'Minimum card deposit is $10.' });
     }
+    if (!PAYNECTA_LINK_SLUG) {
+      return res.status(500).json({ error: 'Payment gateway not configured. Contact support.' });
+    }
 
     const kesAmount = Math.round(Number(amountUsd) * USD_TO_KES);
-    const reference = `BB-CD-${Date.now()}`;
+    const successUrl = `${req.protocol}://${req.get('host')}/#/deposit/success`;
 
     const sessionRes = await paynectaRequest('POST', '/api/v1/checkout/sessions', {
-      amount: kesAmount,
-      currency: 'KES',
-      description: `BetaBinary Card Deposit — ${reference}`,
-      reference,
-      customer: { email: email || '', name: name || 'BetaBinary User' },
-      redirect_url: `${req.protocol}://${req.get('host')}/#/deposit/success`,
-      cancel_url: `${req.protocol}://${req.get('host')}/#/deposit/cancel`,
-      metadata: { source: 'betabinary', usd_amount: Number(amountUsd) }
+      code: PAYNECTA_LINK_SLUG,
+      success_url: successUrl
     });
 
     if (sessionRes.status >= 200 && sessionRes.status < 300) {
@@ -171,13 +147,13 @@ app.post('/api/paynecta/deposit/card', async (req, res) => {
 
       return res.json({
         success: true,
-        reference,
         sessionId,
         checkoutUrl: sessionUrl,
         amountUsd: Number(amountUsd),
         kesAmount
       });
     } else {
+      console.error('[Paynecta] Card session error:', sessionRes);
       return res.status(sessionRes.status).json({ error: sessionRes.body?.message || 'Card session error.' });
     }
 
