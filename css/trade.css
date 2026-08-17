@@ -1,0 +1,895 @@
+/* ==========================================================================
+   BetaBinary - Trading Terminal Styles (trade.css)
+   ========================================================================== */
+
+.trade-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--bg-primary);
+  overflow: hidden;
+}
+
+/* Trading Terminal Header Bar */
+.trade-top-header {
+  height: 58px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.25rem;
+  z-index: 40;
+}
+
+.trade-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  font-size: 1.25rem;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.trade-logo span {
+  color: var(--color-brand);
+}
+
+.trade-logo-icon {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #06b6d4, #0284c7);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.9rem;
+}
+
+/* Asset Selector Bar */
+.asset-selector-wrapper {
+  position: relative;
+}
+
+.asset-current-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #0f172a;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.asset-current-btn:hover {
+  background: #162035;
+  border-color: var(--color-brand);
+}
+
+.asset-icon-pill {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: rgba(6, 182, 212, 0.15);
+  color: var(--color-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+.asset-info-text {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.asset-info-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #ffffff;
+}
+
+.asset-info-payout {
+  font-size: 0.75rem;
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.asset-current-price-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Asset Dropdown Modal/Menu */
+.asset-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 380px;
+  max-height: 480px;
+  background: #0d1424;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.asset-search-box {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: #0a0f1c;
+}
+
+.asset-categories-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  background: #090e1a;
+}
+
+.asset-cat-btn {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.asset-cat-btn.active, .asset-cat-btn:hover {
+  background: #1e293b;
+  color: var(--color-brand);
+}
+
+.asset-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.asset-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.asset-item-row:hover {
+  background: #162238;
+}
+
+.asset-item-row.active {
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+/* User Account & Controls in Header */
+.trade-user-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.account-selector-pill {
+  display: flex;
+  align-items: center;
+  background: #0d1527;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 0.3rem 0.7rem;
+  gap: 0.6rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.account-selector-pill:hover {
+  border-color: var(--border-bright);
+  background: #131c33;
+}
+
+.account-type-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.account-type-demo {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.account-type-real {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.account-balance-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #ffffff;
+}
+
+/* Account Dropdown Switcher */
+.account-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  background: #0d1424;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  z-index: 100;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.account-card-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: #090e1a;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.account-card-opt:hover {
+  background: #131c30;
+  border-color: var(--border-bright);
+}
+
+.account-card-opt.selected {
+  border-color: var(--color-brand);
+  background: rgba(6, 182, 212, 0.08);
+}
+
+/* Main Trading Workspace Grid */
+.trade-main-workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Chart & Visualization Container (Center-Left) */
+.trade-chart-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-subtle);
+  overflow: hidden;
+  position: relative;
+}
+
+.chart-toolbar {
+  height: 44px;
+  background: #090e18;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  z-index: 10;
+}
+
+.chart-tool-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.chart-btn {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.chart-btn:hover {
+  background: #1e293b;
+  color: var(--text-primary);
+}
+
+.chart-btn.active {
+  background: #1a263f;
+  color: var(--color-brand);
+  border-color: rgba(6, 182, 212, 0.4);
+}
+
+.chart-canvas-wrapper {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#trading-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Floating Live Price Overlay in Chart */
+.chart-price-overlay {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: rgba(11, 15, 24, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.chart-price-val {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 800;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.chart-price-last-digit {
+  font-size: 1.8rem;
+  color: var(--color-brand);
+  text-decoration: underline;
+}
+
+.chart-price-change {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Last Digit Frequency Analyzer Widget */
+.digit-analyzer-bar {
+  background: #080d17;
+  border-top: 1px solid var(--border-subtle);
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  z-index: 10;
+}
+
+.digit-analyzer-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.digit-bars-grid {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  flex: 1;
+  max-width: 600px;
+}
+
+.digit-bar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.digit-bar-fill-track {
+  width: 100%;
+  height: 28px;
+  background: #111a2e;
+  border-radius: 3px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.digit-bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, #06b6d4, #0284c7);
+  transition: height 0.3s ease;
+}
+
+.digit-bar-fill.hot {
+  background: linear-gradient(180deg, #10b981, #059669);
+}
+
+.digit-bar-fill.cold {
+  background: linear-gradient(180deg, #f43f5e, #be123c);
+}
+
+.digit-bar-num {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.digit-bar-pct {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* Order Execution Pad (Right Sidebar) */
+.trade-order-pad {
+  width: 360px;
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border-subtle);
+  overflow-y: auto;
+  padding: 1.1rem;
+  gap: 1.1rem;
+  z-index: 25;
+}
+
+.contract-type-nav {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.4rem;
+  background: #090e19;
+  padding: 0.3rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.contract-tab-btn {
+  padding: 0.55rem 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.contract-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.contract-tab-btn.active {
+  background: #1e293b;
+  color: var(--color-brand);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Contract Specific Parameter Selectors */
+.digit-selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.digit-buttons-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.35rem;
+}
+
+.digit-pick-btn {
+  padding: 0.45rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: #0d1525;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.digit-pick-btn:hover {
+  background: #19243d;
+  border-color: var(--color-brand);
+}
+
+.digit-pick-btn.active {
+  background: var(--color-brand);
+  color: #ffffff;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+}
+
+/* Duration Selector */
+.duration-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.duration-tab {
+  flex: 1;
+  padding: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: #0b111e;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: center;
+}
+
+.duration-tab.active {
+  background: #1e293b;
+  color: var(--color-brand);
+  border-color: var(--color-brand);
+}
+
+.duration-presets {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.35rem;
+}
+
+.duration-preset-btn {
+  padding: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: #0d1525;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.duration-preset-btn:hover {
+  background: #17223b;
+  color: #fff;
+}
+
+.duration-preset-btn.active {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+/* Stake Chips & Input */
+.stake-quick-chips {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.stake-chip {
+  flex: 1;
+  padding: 0.3rem 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: #0b111e;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.stake-chip:hover {
+  background: #17223b;
+  color: #fff;
+  border-color: var(--border-medium);
+}
+
+/* Potential Payout Box */
+.payout-calculation-box {
+  background: #080d17;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.payout-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.payout-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.payout-total {
+  font-size: 1.1rem;
+  color: var(--color-success);
+}
+
+/* Action Trade Execution Buttons */
+.trade-action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.btn-call-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.9rem 0.5rem;
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+  transition: all var(--transition-fast);
+}
+
+.btn-call-action:hover {
+  background: linear-gradient(180deg, #059669 0%, #047857 100%);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn-call-action:active {
+  transform: translateY(0);
+}
+
+.btn-put-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.9rem 0.5rem;
+  background: linear-gradient(180deg, #f43f5e 0%, #e11d48 100%);
+  color: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.35);
+  transition: all var(--transition-fast);
+}
+
+.btn-put-action:hover {
+  background: linear-gradient(180deg, #e11d48 0%, #be123c 100%);
+  box-shadow: 0 6px 20px rgba(244, 63, 94, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn-put-action:active {
+  transform: translateY(0);
+}
+
+.action-btn-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  letter-spacing: 0.02em;
+}
+
+.action-btn-payout {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* Bottom Activity & Order History Panel */
+.trade-bottom-activity {
+  height: 220px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+}
+
+.activity-tabs-header {
+  height: 38px;
+  background: #090e18;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  gap: 0.5rem;
+}
+
+.activity-tab-btn {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.activity-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.activity-tab-btn.active {
+  color: var(--color-brand);
+  border-bottom-color: var(--color-brand);
+}
+
+.activity-count-badge {
+  background: #1e293b;
+  color: var(--text-primary);
+  font-size: 0.68rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 9999px;
+}
+
+.activity-content-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+}
+
+/* Open Positions Card Grid */
+.positions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+
+.position-card {
+  background: #0f172a;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.position-card.winning {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, #0f172a 100%);
+}
+
+.position-card.losing {
+  border-color: rgba(244, 63, 94, 0.4);
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.05) 0%, #0f172a 100%);
+}
+
+.position-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--color-brand);
+  transition: width 0.2s linear;
+}
+
+/* History Table */
+.trade-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.trade-history-table th {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.trade-history-table td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  font-family: var(--font-mono);
+}
+
+.trade-history-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Auto-Trading Bot Panel */
+.bot-panel-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 1rem;
+  align-items: center;
+}
+
+.bot-stat-card {
+  background: #090e18;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.bot-stat-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.bot-stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
