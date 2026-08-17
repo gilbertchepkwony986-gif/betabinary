@@ -8,30 +8,38 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 // ===========================================================================
-// PESIPAY GATEWAY PROXY — keeps API credentials off the client
-// Set these as Environment Variables in Render dashboard:
-//   PESIPAY_API_KEY     — Your Pesipay API Key / Bearer Token
-//   PESIPAY_BASE_URL    — e.g. https://api.pesipay.com  (or sandbox URL)
-//   PESIPAY_CALLBACK_URL — Your Render URL + /api/pesipay/callback
+// PAYNECTA PAYMENT GATEWAY PROXY
+// Paynecta (https://paynecta.co.ke) — M-Pesa STK Push & Checkout Sessions
+//
+// Set these Environment Variables in Render Dashboard → Environment:
+//   PAYNECTA_API_KEY    — Your API key from paynecta.co.ke dashboard
+//   PAYNECTA_USER_EMAIL — Your registered Paynecta email
+//   PAYNECTA_LINK_SLUG  — Your payment link slug (e.g. "betabinary")
+//   PAYNECTA_BASE_URL   — https://paynecta.co.ke (default)
 // ===========================================================================
 
-const PESIPAY_API_KEY  = process.env.PESIPAY_API_KEY  || '';
-const PESIPAY_BASE_URL = process.env.PESIPAY_BASE_URL || 'https://api.pesipay.com';
-const CALLBACK_URL     = process.env.PESIPAY_CALLBACK_URL || '';
-const USD_TO_KES       = 130; // approximate fallback rate
+const PAYNECTA_API_KEY    = process.env.PAYNECTA_API_KEY    || '';
+const PAYNECTA_USER_EMAIL = process.env.PAYNECTA_USER_EMAIL || '';
+const PAYNECTA_LINK_SLUG  = process.env.PAYNECTA_LINK_SLUG  || '';
+const PAYNECTA_BASE_URL   = process.env.PAYNECTA_BASE_URL   || 'https://paynecta.co.ke';
+const USD_TO_KES          = 130; // fallback rate; use live rate in production
 
-// Helper: forward requests to Pesipay
-function pesipayRequest(method, endpoint, body) {
+// ---------------------------------------------------------------------------
+// Helper: Make authenticated HTTPS request to Paynecta
+// ---------------------------------------------------------------------------
+function paynectaRequest(method, path, body) {
   return new Promise((resolve, reject) => {
-    const url = new URL(PESIPAY_BASE_URL + endpoint);
     const payload = body ? JSON.stringify(body) : null;
+    const url = new URL(PAYNECTA_BASE_URL);
 
     const options = {
       hostname: url.hostname,
-      path: url.pathname + url.search,
+      port: 443,
+      path,
       method,
       headers: {
-        'Authorization': `Bearer ${PESIPAY_API_KEY}`,
+        'X-API-Key': PAYNECTA_API_KEY,
+        'X-User-Email': PAYNECTA_USER_EMAIL,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {})
@@ -54,115 +62,174 @@ function pesipayRequest(method, endpoint, body) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/pesipay/deposit/mpesa
-// Initiates an M-Pesa STK Push via Pesipay Collections API
+// POST /api/paynecta/deposit/mpesa
+// Creates a Paynecta Checkout Session then initiates STK Push to phone
 // Body: { phone, amountUsd }
 // ---------------------------------------------------------------------------
-app.post('/api/pesipay/deposit/mpesa', async (req, res) => {
+app.post('/api/paynecta/deposit/mpesa', async (req, res) => {
   try {
     const { phone, amountUsd } = req.body;
 
-    if (!phone || !amountUsd || Number(amountUsd) < 5) {
-      return res.status(400).json({ error: 'Invalid phone or amount (minimum $5).' });
+    if (!phone || phone.replace(/\D/g, '').length < 9) {
+      return res.status(400).json({ error: 'Enter a valid Kenyan phone number (e.g. 0712345678).' });
+    }
+    if (!amountUsd || Number(amountUsd) < 5) {
+      return res.status(400).json({ error: 'Minimum deposit is $5.' });
     }
 
     const kesAmount = Math.round(Number(amountUsd) * USD_TO_KES);
     const reference = `BB-${Date.now()}`;
 
-    // Pesipay STK Push / collection endpoint
-    const result = await pesipayRequest('POST', '/v1/collections/mpesa/stk', {
-      phone_number: phone.replace(/^0/, '254'),  // normalize to 254XXXXXXXXX
+    // Step 1: Create a Checkout Session
+    const sessionRes = await paynectaRequest('POST', '/api/v1/checkout/sessions', {
       amount: kesAmount,
       currency: 'KES',
+      description: `BetaBinary Deposit — ${reference}`,
       reference,
-      description: `BetaBinary Deposit – ${reference}`,
-      callback_url: CALLBACK_URL || `${req.protocol}://${req.get('host')}/api/pesipay/callback`
+      redirect_url: `${req.protocol}://${req.get('host')}/#/deposit/success`,
+      cancel_url: `${req.protocol}://${req.get('host')}/#/deposit/cancel`,
+      metadata: { source: 'betabinary', usd_amount: Number(amountUsd) }
     });
 
-    if (result.status >= 200 && result.status < 300) {
+    if (sessionRes.status < 200 || sessionRes.status >= 300) {
+      console.error('[Paynecta] Session create error:', sessionRes);
+      return res.status(sessionRes.status).json({ error: sessionRes.body?.message || 'Could not create checkout session.' });
+    }
+
+    const sessionId  = sessionRes.body?.data?.id  || sessionRes.body?.id;
+    const sessionUrl = sessionRes.body?.data?.url || sessionRes.body?.checkout_url;
+
+    // Step 2: Initiate STK Push via payment link route
+    const normalizedPhone = phone.replace(/^0/, '254').replace(/\D/g, '');
+    const stkRes = await paynectaRequest('POST', `/api/v1/checkout/sessions/${sessionId}/pay`, {
+      phone_number: normalizedPhone,
+      payment_method: 'mpesa_stk'
+    });
+
+    if (stkRes.status >= 200 && stkRes.status < 300) {
       return res.json({
         success: true,
         reference,
+        sessionId,
+        sessionUrl,
         kesAmount,
         amountUsd: Number(amountUsd),
-        gatewayRef: result.body.reference || result.body.checkout_request_id || reference,
-        message: result.body.message || 'STK Push sent. Check your phone.'
+        phone: normalizedPhone,
+        message: stkRes.body?.message || 'STK Push sent. Check your phone for the M-Pesa prompt.'
       });
     } else {
-      console.error('[Pesipay] STK error:', result);
-      return res.status(result.status).json({ error: result.body?.message || 'Payment gateway error.' });
+      // Fall back: return session URL for manual checkout
+      console.warn('[Paynecta] STK push failed, returning checkout URL:', stkRes.body);
+      return res.json({
+        success: true,
+        reference,
+        sessionId,
+        sessionUrl,
+        kesAmount,
+        amountUsd: Number(amountUsd),
+        fallback: true,
+        message: 'STK Push unavailable. Use the checkout link to complete payment.'
+      });
     }
+
   } catch (err) {
-    console.error('[Pesipay] STK exception:', err.message);
+    console.error('[Paynecta] M-Pesa error:', err.message);
     res.status(500).json({ error: 'Payment gateway unreachable. Please try again.' });
   }
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/pesipay/deposit/card
-// Initiates a card payment session via Pesipay
+// POST /api/paynecta/deposit/card
+// Creates a Paynecta checkout session for card / any other payment method
 // Body: { amountUsd, email, name }
 // ---------------------------------------------------------------------------
-app.post('/api/pesipay/deposit/card', async (req, res) => {
+app.post('/api/paynecta/deposit/card', async (req, res) => {
   try {
     const { amountUsd, email, name } = req.body;
     if (!amountUsd || Number(amountUsd) < 10) {
       return res.status(400).json({ error: 'Minimum card deposit is $10.' });
     }
 
+    const kesAmount = Math.round(Number(amountUsd) * USD_TO_KES);
     const reference = `BB-CD-${Date.now()}`;
 
-    const result = await pesipayRequest('POST', '/v1/collections/card', {
-      amount: Number(amountUsd),
-      currency: 'USD',
+    const sessionRes = await paynectaRequest('POST', '/api/v1/checkout/sessions', {
+      amount: kesAmount,
+      currency: 'KES',
+      description: `BetaBinary Card Deposit — ${reference}`,
       reference,
-      customer: { email: email || 'customer@betabinary.com', name: name || 'BetaBinary User' },
-      description: `BetaBinary Card Deposit – ${reference}`,
-      callback_url: CALLBACK_URL || `${req.protocol}://${req.get('host')}/api/pesipay/callback`,
-      redirect_url: `${req.protocol}://${req.get('host')}/#/deposit/success`
+      customer: { email: email || '', name: name || 'BetaBinary User' },
+      redirect_url: `${req.protocol}://${req.get('host')}/#/deposit/success`,
+      cancel_url: `${req.protocol}://${req.get('host')}/#/deposit/cancel`,
+      metadata: { source: 'betabinary', usd_amount: Number(amountUsd) }
     });
 
-    if (result.status >= 200 && result.status < 300) {
+    if (sessionRes.status >= 200 && sessionRes.status < 300) {
+      const sessionId  = sessionRes.body?.data?.id  || sessionRes.body?.id;
+      const sessionUrl = sessionRes.body?.data?.url || sessionRes.body?.checkout_url
+                      || `https://paynecta.co.ke/c/${sessionId}`;
+
       return res.json({
         success: true,
         reference,
+        sessionId,
+        checkoutUrl: sessionUrl,
         amountUsd: Number(amountUsd),
-        checkoutUrl: result.body.checkout_url || result.body.redirect_url || null,
-        gatewayRef: result.body.reference || reference
+        kesAmount
       });
     } else {
-      return res.status(result.status).json({ error: result.body?.message || 'Card gateway error.' });
+      return res.status(sessionRes.status).json({ error: sessionRes.body?.message || 'Card session error.' });
     }
+
   } catch (err) {
-    console.error('[Pesipay] Card exception:', err.message);
+    console.error('[Paynecta] Card error:', err.message);
     res.status(500).json({ error: 'Payment gateway unreachable. Please try again.' });
   }
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/pesipay/withdraw
-// Initiates a disbursement (M-Pesa / Bank) via Pesipay
+// GET /api/paynecta/status/:reference
+// Poll payment status using Paynecta's status endpoint
+// ---------------------------------------------------------------------------
+app.get('/api/paynecta/status/:reference', async (req, res) => {
+  try {
+    const { reference } = req.params;
+    // Paynecta status: GET /api/v1/payment/status?transaction_reference=...
+    const result = await paynectaRequest(
+      'GET',
+      `/api/v1/payment/status?transaction_reference=${encodeURIComponent(reference)}`
+    );
+    return res.status(result.status).json(result.body);
+  } catch (err) {
+    console.error('[Paynecta] Status error:', err.message);
+    res.status(500).json({ error: 'Could not fetch payment status.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/paynecta/withdraw
+// B2C / M-Pesa disbursement (requires B2C credentials from Paynecta)
 // Body: { method, destination, amountUsd }
 // ---------------------------------------------------------------------------
-app.post('/api/pesipay/withdraw', async (req, res) => {
+app.post('/api/paynecta/withdraw', async (req, res) => {
   try {
     const { method, destination, amountUsd } = req.body;
     if (!amountUsd || Number(amountUsd) < 10) {
       return res.status(400).json({ error: 'Minimum withdrawal is $10.' });
     }
 
-    const reference = `BB-WD-${Date.now()}`;
-    const isMpesa = method === 'mpesa';
     const kesAmount = Math.round(Number(amountUsd) * USD_TO_KES);
+    const reference = `BB-WD-${Date.now()}`;
+    const normalizedPhone = destination.replace(/^0/, '254').replace(/\D/g, '');
 
-    const result = await pesipayRequest('POST', '/v1/disbursements', {
-      type: isMpesa ? 'mobile_money' : 'bank_transfer',
-      phone_number: isMpesa ? destination.replace(/^0/, '254') : undefined,
-      account_number: !isMpesa ? destination : undefined,
+    // Paynecta B2C disbursement via mobile payment link initiation
+    const result = await paynectaRequest('POST', `/api/payment/${PAYNECTA_LINK_SLUG}/initiate`, {
       amount: kesAmount,
       currency: 'KES',
+      phone_number: normalizedPhone,
       reference,
-      narration: `BetaBinary Withdrawal – ${reference}`
+      description: `BetaBinary Withdrawal — ${reference}`,
+      type: 'b2c'
     });
 
     if (result.status >= 200 && result.status < 300) {
@@ -171,69 +238,56 @@ app.post('/api/pesipay/withdraw', async (req, res) => {
         reference,
         amountUsd: Number(amountUsd),
         kesAmount,
-        gatewayRef: result.body.reference || reference,
-        message: result.body.message || 'Withdrawal initiated successfully.'
+        message: result.body?.message || 'Withdrawal initiated. Funds will be sent to your M-Pesa.'
       });
     } else {
-      return res.status(result.status).json({ error: result.body?.message || 'Withdrawal gateway error.' });
+      return res.status(result.status).json({ error: result.body?.message || 'Withdrawal failed.' });
     }
+
   } catch (err) {
-    console.error('[Pesipay] Withdrawal exception:', err.message);
-    res.status(500).json({ error: 'Payment gateway unreachable. Please try again.' });
+    console.error('[Paynecta] Withdrawal error:', err.message);
+    res.status(500).json({ error: 'Withdrawal gateway unreachable. Please try again.' });
   }
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/pesipay/callback
-// Pesipay webhook — called by Pesipay when a payment is confirmed or failed
+// POST /api/paynecta/webhook
+// Paynecta sends payment status updates here
 // ---------------------------------------------------------------------------
-app.post('/api/pesipay/callback', (req, res) => {
+app.post('/api/paynecta/webhook', (req, res) => {
   const payload = req.body;
-  console.log('[Pesipay] Callback received:', JSON.stringify(payload, null, 2));
+  console.log('[Paynecta] Webhook received:', JSON.stringify(payload, null, 2));
 
-  // TODO: Verify callback signature if Pesipay provides HMAC
-  // const signature = req.headers['x-pesipay-signature'];
+  const { transaction_reference, status, amount, currency } = payload;
+  const s = (status || '').toUpperCase();
 
-  const { reference, status, amount, currency } = payload;
-
-  if (status === 'SUCCESS' || status === 'COMPLETED' || status === 'success') {
-    console.log(`[Pesipay] Payment confirmed: ${reference} — ${currency} ${amount}`);
-    // In a real backend: update DB, credit user account, emit websocket event
+  if (s === 'SUCCESS' || s === 'COMPLETED') {
+    console.log(`[Paynecta] Payment CONFIRMED: ${transaction_reference} — ${currency} ${amount}`);
+    // In production: look up user by reference, credit their account, emit real-time event
   } else {
-    console.log(`[Pesipay] Payment status: ${status} for ${reference}`);
+    console.log(`[Paynecta] Payment status "${status}" for ref: ${transaction_reference}`);
   }
 
-  // Always respond 200 to acknowledge receipt
   res.json({ received: true });
 });
 
-// ---------------------------------------------------------------------------
-// GET /api/pesipay/status/:reference
-// Poll payment status
-// ---------------------------------------------------------------------------
-app.get('/api/pesipay/status/:reference', async (req, res) => {
-  try {
-    const { reference } = req.params;
-    const result = await pesipayRequest('GET', `/v1/transactions/${encodeURIComponent(reference)}`);
-    return res.status(result.status).json(result.body);
-  } catch (err) {
-    res.status(500).json({ error: 'Could not fetch payment status.' });
-  }
-});
-
 // ===========================================================================
-// STATIC FILE SERVER — serves the SPA
+// STATIC ASSETS — serves the SPA
 // ===========================================================================
 app.use(express.static(path.join(__dirname), { maxAge: '1h' }));
 
-// SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`BetaBinary + Pesipay gateway running on port ${PORT}`);
-  if (!PESIPAY_API_KEY) {
-    console.warn('[WARNING] PESIPAY_API_KEY is not set — payment endpoints will fail. Add it in Render > Environment.');
+  console.log(`BetaBinary + Paynecta gateway running on port ${PORT}`);
+
+  const missing = [];
+  if (!PAYNECTA_API_KEY)    missing.push('PAYNECTA_API_KEY');
+  if (!PAYNECTA_USER_EMAIL) missing.push('PAYNECTA_USER_EMAIL');
+  if (!PAYNECTA_LINK_SLUG)  missing.push('PAYNECTA_LINK_SLUG');
+  if (missing.length) {
+    console.warn(`[WARNING] Missing env vars: ${missing.join(', ')} — Add them in Render → Environment.`);
   }
 });
