@@ -8,3 +8,5 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20
+      - key: UPESIPAY_BASE_URL
+        value: https://api.pesipay.com
